@@ -1,0 +1,15 @@
+[package]
+name = "Hajs-vs-Zombies"
+version = "0.1.0"
+edition = "2024"
+description = "Bah c'est Plants vs Zombies mais avec des blahajs..."
+
+[package.metadata.cargo-3ds]
+name = "Hajs vs Zombies"
+authors = ["Haj Dev"]
+
+[dependencies]
+cabbage = { git = "https://git.sr.ht/~sheepy/cabbage" }
+citro2d = { git = "https://git.sr.ht/~sheepy/citro2d-rs" }
+citro3d = { git = "https://github.com/rust3ds/citro3d-rs" }
+ctru-rs = { git = "https://github.com/rust3ds/ctru-rs" }
