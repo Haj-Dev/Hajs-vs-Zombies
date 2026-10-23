@@ -1,42 +1,26 @@
+mod input;
+mod scene;
+mod scenes;
+
 use cabbage::prelude::*;
-use citro2d::{
-    prelude::*,
-    render::{ReadyMode, Target},
-};
+use citro2d::prelude::*;
 use ctru::{
     prelude::*,
     services::gfx::{BottomScreen, TopScreen},
 };
 
-const CLEAR_COLOR: Rgba = 0x000000ff;
+use crate::{input::Input, scene::SceneManager, scenes::title::TitleScene};
 
-pub struct App;
+/// Top-level game state, owned by the framework's [`State`].
+pub struct App {
+    scenes: SceneManager,
+}
 
 impl App {
-    fn draw_top_screen<'screen>(
-        &self,
-        target: Target<'screen, TopScreen, ReadyMode>,
-    ) -> Result<Target<'screen, TopScreen, ReadyMode>, Error> {
-        let mut draw_target = target.begin();
-        draw_target.clear(CLEAR_COLOR);
-
-        let text = Text::new(
-            "Hello, World!",
-            (50., 50.),
-            TextDrawStyle::with_color(TextDrawStyle::default(), 0xffffffff),
-        );
-        text.blit()?;
-
-        Ok(draw_target.end())
-    }
-
-    fn draw_bottom_screen<'screen>(
-        &self,
-        target: Target<'screen, BottomScreen, ReadyMode>,
-    ) -> Result<Target<'screen, BottomScreen, ReadyMode>, Error> {
-        let mut draw_target = target.begin();
-        draw_target.clear(CLEAR_COLOR);
-        Ok(draw_target.end())
+    fn new() -> Self {
+        Self {
+            scenes: SceneManager::new(Box::new(TitleScene::new())),
+        }
     }
 }
 
@@ -56,16 +40,17 @@ impl StateImpl<App> for State<'_, App> {
             &c2d_instance,
         );
 
-        loop {
+        while self.handles.apt.main_loop() {
             self.handles.hid.scan_input();
-            let keys_held = self.handles.hid.keys_held();
+            let input = Input::new(self.handles.hid);
 
-            if keys_held.contains(KeyPad::START) || !self.handles.apt.main_loop() {
+            self.app.scenes.update(&input);
+            if self.app.scenes.is_empty() {
                 break;
             }
 
-            top_target = self.app.draw_top_screen(top_target)?;
-            bottom_target = self.app.draw_bottom_screen(bottom_target)?;
+            top_target = self.app.scenes.draw_top(top_target)?;
+            bottom_target = self.app.scenes.draw_bottom(bottom_target)?;
 
             self.handles.gfx.wait_for_vblank();
         }
@@ -85,7 +70,7 @@ fn main() {
         gfx: &mut gfx,
     };
 
-    let mut state = State::new(App, handles);
+    let mut state = State::new(App::new(), handles);
 
     if let Err(e) = state.main() {
         let _ = state.handle_error(e);
