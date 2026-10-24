@@ -66,7 +66,7 @@ impl Scene for EndScene {
 
         Text::new(
             "YOU LOST\nTHE GAME",
-            (F_BOTTOM_WIDTH / 2. + 50., F_BOTTOM_HEIGHT / 2. - 50.),
+            (F_BOTTOM_WIDTH / 2. + 45., F_BOTTOM_HEIGHT / 2. - 50.),
             TextDrawStyle::default()
                 .with_scalar(2.5)
                 .with_color(TEXT_RED_COLOR)
