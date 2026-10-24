@@ -11,6 +11,7 @@ use ctru::{
 };
 
 use crate::{
+    frame,
     input::Input,
     mobs::{
         CELL_H, CELL_W, COLS, Economy, MobManager, Outcome, ROWS, cell_origin, plant::PlantKind,
@@ -251,7 +252,7 @@ impl Scene for GameScene {
         &mut self,
         target: Target<'s, TopScreen, ReadyMode>,
     ) -> Result<Target<'s, TopScreen, ReadyMode>, Error> {
-        let mut draw_target = target.begin();
+        let mut draw_target = frame::begin_scene(target);
         draw_target.clear(BACKGROUND);
 
         let line = |text: &str, y: f32, scalar: f32, color: Rgba| {
@@ -300,7 +301,7 @@ impl Scene for GameScene {
             line(message, 220., 0.8, LOST_COLOR)?;
         }
 
-        Ok(draw_target.end())
+        Ok(frame::end_scene(draw_target))
     }
 
     /// Touch screen: shop strip on top, lawn below.
@@ -308,7 +309,7 @@ impl Scene for GameScene {
         &mut self,
         target: Target<'s, BottomScreen, ReadyMode>,
     ) -> Result<Target<'s, BottomScreen, ReadyMode>, Error> {
-        let mut draw_target = target.begin();
+        let mut draw_target = frame::begin_scene(target);
         draw_target.clear(BACKGROUND);
 
         if self.outcome == Outcome::Lost {
@@ -331,7 +332,7 @@ impl Scene for GameScene {
                 0.6,
                 TEXT_COLOR,
             )?;
-            return Ok(draw_target.end());
+            return Ok(frame::end_scene(draw_target));
         }
 
         // Shop strip.
@@ -399,6 +400,6 @@ impl Scene for GameScene {
             .blit()?;
         }
 
-        Ok(draw_target.end())
+        Ok(frame::end_scene(draw_target))
     }
 }
