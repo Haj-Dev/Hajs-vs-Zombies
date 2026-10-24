@@ -18,6 +18,7 @@ use crate::{
         zombie::ZombieKind,
     },
     scene::{Scene, Transition},
+    scenes::end::EndScene,
     scenes::pause::PauseScene,
 };
 
@@ -252,6 +253,9 @@ impl Scene for GameScene {
         }
         self.update_waves();
         self.outcome = self.mobs.update(&mut self.economy);
+        if self.outcome == Outcome::Lost {
+            return Transition::Push(Box::new(EndScene::new(self.frame / FPS)));
+        }
 
         self.message = match self.message {
             Some((text, frames)) if frames > 1 => Some((text, frames - 1)),
@@ -327,29 +331,6 @@ impl Scene for GameScene {
     ) -> Result<Target<'s, BottomScreen, ReadyMode>, Error> {
         let mut draw_target = frame::begin_scene(target);
         draw_target.clear(BACKGROUND);
-
-        if self.outcome == Outcome::Lost {
-            let center = F_BOTTOM_WIDTH / 2.;
-            let line = |text: &str, y: f32, scalar: f32, color: Rgba| {
-                Text::new(
-                    text,
-                    (center, y),
-                    TextDrawStyle::default()
-                        .with_scalar(scalar)
-                        .with_color(color)
-                        .with_alignment(HorizAlignment::Center, VertAlignment::Center),
-                )
-                .blit()
-            };
-            line("The zombies ate your brains!", 100., 0.9, LOST_COLOR)?;
-            line(
-                "Tap or press A to return to the title",
-                140.,
-                0.6,
-                TEXT_COLOR,
-            )?;
-            return Ok(frame::end_scene(draw_target));
-        }
 
         // Shop strip.
         for (i, kind) in PlantKind::ALL.iter().enumerate() {
