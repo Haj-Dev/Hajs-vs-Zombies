@@ -14,6 +14,8 @@ pub enum Transition {
     Push(Box<dyn Scene>),
     /// Drop the current scene, revealing the one beneath it.
     Pop,
+    /// Drop the `n` topmost scenes at once.
+    PopMany(usize),
     /// Close the game.
     Quit,
 }
@@ -69,6 +71,10 @@ impl SceneManager {
             Transition::Push(scene) => self.stack.push(scene),
             Transition::Pop => {
                 self.stack.pop();
+            }
+            Transition::PopMany(n) => {
+                let keep = self.stack.len().saturating_sub(n);
+                self.stack.truncate(keep);
             }
             Transition::Quit => self.stack.clear(),
         }

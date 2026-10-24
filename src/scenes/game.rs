@@ -14,6 +14,7 @@ use crate::{
         zombie::ZombieKind,
     },
     scene::{Scene, Transition},
+    scenes::pause::PauseScene,
 };
 
 const BACKGROUND: Rgba = 0xeff1f5ff;
@@ -128,14 +129,14 @@ impl Scene for GameScene {
             };
         }
 
-        if input.pressed(KeyPad::B) {
-            return Transition::Pop;
+        if input.pressed(KeyPad::START) {
+            return Transition::Push(Box::new(PauseScene::new()));
         }
 
         self.frame += 1;
         self.handle_input(input);
 
-        if self.frame % SKY_SUN_INTERVAL == 0 {
+        if self.frame.is_multiple_of(SKY_SUN_INTERVAL) {
             self.economy.sun += SKY_SUN_AMOUNT;
         }
         self.update_waves();
