@@ -3,7 +3,7 @@
 //! The lawn and the plant shop live on the touch (bottom) screen; the top
 //! screen is a read-only dashboard.
 
-use cabbage::{F_BOTTOM_WIDTH, prelude::Error};
+use cabbage::{F_BOTTOM_WIDTH, F_TOP_WIDTH, prelude::Error};
 use citro2d::prelude::*;
 use ctru::{
     prelude::*,
@@ -21,6 +21,7 @@ use crate::{
 };
 
 const BACKGROUND: Rgba = 0xeff1f5ff;
+const TOP_TEXT_COLOR: Rgba = 0xeff1f5ff;
 const TEXT_COLOR: Rgba = 0x4c4f69ff;
 const ACCENT: Rgba = 0xdf8e1dff;
 const CURSOR_FILL: Rgba = 0xdf8e1d70;
@@ -101,7 +102,7 @@ impl GameScene {
                 .expect("failed to load romfs:/spinning-blahaj.t3x"),
         ));
         let sprites = (0..BLAHAJ_FRAMES)
-            .map(|index| Sprite::new(sheet, index, (F_BOTTOM_WIDTH / 2., 120.), (1., 1.)))
+            .map(|index| Sprite::new(sheet, index, (F_TOP_WIDTH / 2., 120.), (1., 1.)))
             .collect();
 
         Self {
@@ -281,12 +282,12 @@ impl Scene for GameScene {
         let animation_frame = (self.frame / BLAHAJ_FRAME_DELAY) as usize % self.sprites.len();
         self.sprites[animation_frame].blit()?;
 
-        line("IKEA Points", 22., 0.7, TEXT_COLOR)?;
+        line("IKEA Points", 22., 0.7, TOP_TEXT_COLOR)?;
         line(&self.economy.sun.to_string(), 55., 1.4, ACCENT)?;
 
         let kind = self.selected_kind();
         let stats = kind.stats();
-        line(kind.name(), 100., 0.9, TEXT_COLOR)?;
+        line(kind.name(), 100., 0.9, TOP_TEXT_COLOR)?;
         line(
             &format!(
                 "Cost: {}, Health: {}, Cooldown: {}",
@@ -294,7 +295,7 @@ impl Scene for GameScene {
             ),
             125.,
             0.7,
-            TEXT_COLOR,
+            TOP_TEXT_COLOR,
         )?;
         // Add more stat lines here (health, damage, ...) once you want them.
 
@@ -302,13 +303,13 @@ impl Scene for GameScene {
             &format!("Survived: {}", self.survival_time()),
             165.,
             0.8,
-            TEXT_COLOR,
+            TOP_TEXT_COLOR,
         )?;
         line(
             &format!("Zombies on the lawn: {}", self.mobs.zombie_count()),
             190.,
             0.7,
-            TEXT_COLOR,
+            TOP_TEXT_COLOR,
         )?;
 
         if let Some((message, _)) = self.message {

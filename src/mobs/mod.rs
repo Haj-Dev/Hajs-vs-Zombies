@@ -100,6 +100,10 @@ impl MobManager {
         self.zombies.push(Zombie::new(kind, row, LAWN_W));
     }
 
+    pub fn zombie_count(&self) -> usize {
+        self.zombies.len()
+    }
+
     pub fn update(&mut self, economy: &mut Economy) -> Outcome {
         self.update_plants(economy);
         self.update_projectiles();
