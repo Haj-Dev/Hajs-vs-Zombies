@@ -18,24 +18,29 @@ const TEXT_COLOR: Rgba = 0x4c4f69ff;
 const ACCENT: Rgba = 0xdf8e1dff;
 const ACCENT_ALT: Rgba = 0xf9e2afff;
 
-/// Frames between each blink toggle, at 60 fps
-const BLINK_INTERVAL: u32 = 15;
-
 /// The area of the bottom screen that starts the game when tapped.
 const START_BUTTON: BoundingBox = BoundingBox::with_top_left((60., 80.), (200., 80.));
 
-/// The game's title screen.
-#[derive(Default)]
 pub struct TitleScene {
     /// Frames elapsed, used to blink the prompt.
     frame: u32,
     /// Whether the start button is currently being touched.
     button_touched: bool,
+    /// Well... the logo, obviously.
+    logo: Sprite<'static>,
 }
 
 impl TitleScene {
     pub fn new() -> Self {
-        Self::default()
+        let sheet: &'static SpriteSheet = Box::leak(Box::new(
+            SpriteSheet::new("romfs:/logo.t3x").expect("failed to load romfs:/logo.t3x"),
+        ));
+        let logo = Sprite::new(sheet, 0, (200., 120.), (1., 1.));
+        Self {
+            frame: 0,
+            button_touched: false,
+            logo,
+        }
     }
 }
 
@@ -63,38 +68,7 @@ impl Scene for TitleScene {
         let mut draw_target = target.begin();
         draw_target.clear(BACKGROUND);
 
-        Text::new(
-            "HAJS VS ZOMBIES",
-            (200., 88.),
-            TextDrawStyle::default()
-                .with_scalar(1.3)
-                .with_color(ACCENT)
-                .with_alignment(HorizAlignment::Center, VertAlignment::Center),
-        )
-        .blit()?;
-
-        Text::new(
-            "a tower defense game",
-            (200., 132.),
-            TextDrawStyle::default()
-                .with_scalar(0.7)
-                .with_color(TEXT_COLOR)
-                .with_alignment(HorizAlignment::Center, VertAlignment::Center),
-        )
-        .blit()?;
-
-        // Blinking prompt.
-        if (self.frame / BLINK_INTERVAL) % 2 == 0 {
-            Text::new(
-                "Press A to start",
-                (200., 195.),
-                TextDrawStyle::default()
-                    .with_scalar(0.8)
-                    .with_color(TEXT_COLOR)
-                    .with_alignment(HorizAlignment::Center, VertAlignment::Center),
-            )
-            .blit()?;
-        }
+        self.logo.blit()?;
 
         Ok(draw_target.end())
     }

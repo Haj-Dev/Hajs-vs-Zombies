@@ -60,6 +60,10 @@ impl StateImpl<App> for State<'_, App> {
 }
 
 fn main() {
+    std::panic::set_hook(Box::new(|info| {
+        let _ = std::fs::write("sdmc:/hajs-panic.txt", info.to_string());
+    }));
+    let _romfs = ctru::services::romfs::RomFS::new().expect("failed to mount romfs");
     let mut apt = Apt::new().expect("failed to obtain applet service handle");
     let mut hid = Hid::new().expect("failed to obtain HID handle");
     let mut gfx = Gfx::new().expect("failed to obtain GFX handle");
