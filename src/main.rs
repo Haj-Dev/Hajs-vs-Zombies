@@ -1,4 +1,5 @@
 mod input;
+mod mobs;
 mod scene;
 mod scenes;
 

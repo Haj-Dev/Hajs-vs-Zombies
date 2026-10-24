@@ -20,7 +20,7 @@ impl PlantKind {
             Self::Sunflower => PlantStats {
                 hp: 300,
                 cost: 50,
-                cooldown: 10 * 60,
+                cooldown: 5 * 60,
             },
             Self::Peashooter => PlantStats {
                 hp: 300,
