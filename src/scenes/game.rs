@@ -3,7 +3,7 @@
 //! The lawn and the plant shop live on the touch (bottom) screen; the top
 //! screen is a read-only dashboard.
 
-use cabbage::{F_BOTTOM_WIDTH, prelude::Error};
+use cabbage::{F_BOTTOM_WIDTH, F_TOP_WIDTH, prelude::Error};
 use citro2d::prelude::*;
 use ctru::{
     prelude::*,
@@ -22,6 +22,7 @@ use crate::{
 };
 
 const BACKGROUND: Rgba = 0xeff1f5ff;
+const TOP_TEXT_COLOR: Rgba = 0xeff1f5ff;
 const TEXT_COLOR: Rgba = 0x4c4f69ff;
 const ACCENT: Rgba = 0xdf8e1dff;
 const CURSOR_FILL: Rgba = 0xdf8e1d70;
@@ -36,6 +37,8 @@ const SKY_SUN_INTERVAL: u32 = 8 * 60;
 const SKY_SUN_AMOUNT: u32 = 25;
 const FIRST_ZOMBIE_DELAY: u32 = 8 * 60;
 const MESSAGE_DURATION: u16 = 90;
+const BLAHAJ_FRAMES: usize = 8;
+const BLAHAJ_FRAME_DELAY: u32 = 8;
 const FPS: u32 = 60;
 
 const SHOP_Y: f32 = 2.;
@@ -88,12 +91,21 @@ pub struct GameScene {
     next_zombie: u32,
     rng: u32,
     message: Option<(&'static str, u16)>,
+    sprites: Vec<Sprite<'static>>,
     press: Option<TouchTarget>,
     last_touch: Option<(u16, u16)>,
 }
 
 impl GameScene {
     pub fn new() -> Self {
+        let sheet: &'static SpriteSheet = Box::leak(Box::new(
+            SpriteSheet::new("romfs:/spinning-blahaj.t3x")
+                .expect("failed to load romfs:/spinning-blahaj.t3x"),
+        ));
+        let sprites = (0..BLAHAJ_FRAMES)
+            .map(|index| Sprite::new(sheet, index, (F_TOP_WIDTH / 2., 120.), (1., 1.)))
+            .collect();
+
         Self {
             mobs: MobManager::new(),
             economy: Economy { sun: STARTING_SUN },
@@ -105,6 +117,7 @@ impl GameScene {
             next_zombie: FIRST_ZOMBIE_DELAY,
             rng: 0x2545_f491,
             message: None,
+            sprites,
             press: None,
             last_touch: None,
         }
@@ -266,13 +279,16 @@ impl Scene for GameScene {
             )
             .blit()
         };
+      
+        let animation_frame = (self.frame / BLAHAJ_FRAME_DELAY) as usize % self.sprites.len();
+        self.sprites[animation_frame].blit()?;
 
-        line("IKEA Points", 22., 0.7, TEXT_COLOR)?;
+        line("IKEA Points", 22., 0.7, TOP_TEXT_COLOR)?;
         line(&self.economy.sun.to_string(), 55., 1.4, ACCENT)?;
 
         let kind = self.selected_kind();
         let stats = kind.stats();
-        line(kind.name(), 100., 0.9, TEXT_COLOR)?;
+        line(kind.name(), 100., 0.9, TOP_TEXT_COLOR)?;
         line(
             &format!(
                 "Cost: {}, Health: {}, Cooldown: {}",
@@ -280,7 +296,7 @@ impl Scene for GameScene {
             ),
             125.,
             0.7,
-            TEXT_COLOR,
+            TOP_TEXT_COLOR,
         )?;
         // Add more stat lines here (health, damage, ...) once you want them.
 
@@ -288,13 +304,13 @@ impl Scene for GameScene {
             &format!("Survived: {}", self.survival_time()),
             165.,
             0.8,
-            TEXT_COLOR,
+            TOP_TEXT_COLOR,
         )?;
         line(
             &format!("Zombies on the lawn: {}", self.mobs.zombie_count()),
             190.,
             0.7,
-            TEXT_COLOR,
+            TOP_TEXT_COLOR,
         )?;
 
         if let Some((message, _)) = self.message {
