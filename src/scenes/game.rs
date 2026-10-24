@@ -27,6 +27,8 @@ const SKY_SUN_INTERVAL: u32 = 8 * 60;
 const SKY_SUN_AMOUNT: u32 = 25;
 const FIRST_ZOMBIE_DELAY: u32 = 8 * 60;
 const MESSAGE_DURATION: u16 = 90;
+const BLAHAJ_FRAMES: usize = 8;
+const BLAHAJ_FRAME_DELAY: u32 = 8;
 
 pub struct GameScene {
     mobs: MobManager,
@@ -38,10 +40,19 @@ pub struct GameScene {
     next_zombie: u32,
     rng: u32,
     message: Option<(&'static str, u16)>,
+    sprites: Vec<Sprite<'static>>,
 }
 
 impl GameScene {
     pub fn new() -> Self {
+        let sheet: &'static SpriteSheet = Box::leak(Box::new(
+            SpriteSheet::new("romfs:/spinning-blahaj.t3x")
+                .expect("failed to load romfs:/spinning-blahaj.t3x"),
+        ));
+        let sprites = (0..BLAHAJ_FRAMES)
+            .map(|index| Sprite::new(sheet, index, (F_BOTTOM_WIDTH / 2., 120.), (1., 1.)))
+            .collect();
+
         Self {
             mobs: MobManager::new(),
             economy: Economy { sun: STARTING_SUN },
@@ -52,6 +63,7 @@ impl GameScene {
             next_zombie: FIRST_ZOMBIE_DELAY,
             rng: 0x2545_f491,
             message: None,
+            sprites,
         }
     }
 
@@ -207,21 +219,14 @@ impl Scene for GameScene {
             .blit()
         };
 
+        let animation_frame = (self.frame / BLAHAJ_FRAME_DELAY) as usize % self.sprites.len();
+        self.sprites[animation_frame].blit()?;
+
         if self.outcome == Outcome::Lost {
-            line("The zombies ate your brains!", 100., 0.9, LOST_COLOR)?;
+            line("The zombies got your blahaj!", 100., 0.9, LOST_COLOR)?;
             line("Press A to return to the title", 140., 0.7, TEXT_COLOR)?;
             return Ok(draw_target.end());
         }
-
-        line(
-            &format!("Zombies on the lawn: {}", self.mobs.zombie_count()),
-            40.,
-            0.7,
-            TEXT_COLOR,
-        )?;
-        line("D-Pad: move cursor", 100., 0.65, TEXT_COLOR)?;
-        line("A: plant    L / R: change plant", 125., 0.65, TEXT_COLOR)?;
-        line("B: back to the title", 150., 0.65, TEXT_COLOR)?;
 
         if let Some((message, _)) = self.message {
             line(message, 200., 0.8, LOST_COLOR)?;
