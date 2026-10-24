@@ -79,7 +79,7 @@ impl Scene for EndScene {
                 "You survived for {}",
                 survival_time(self.survived_time_seconds)
             ),
-            (F_BOTTOM_WIDTH / 2. + 40., F_BOTTOM_HEIGHT / 2. + 62.),
+            (F_BOTTOM_WIDTH / 2. + 40., F_BOTTOM_HEIGHT / 2. + 57.),
             TextDrawStyle::default()
                 .with_scalar(0.8)
                 .with_color(TEXT_GREY_COLOR)
@@ -89,7 +89,7 @@ impl Scene for EndScene {
 
         Text::new(
             "press anywhere or press\nA / START to continue",
-            (F_BOTTOM_WIDTH / 2. + 40., F_BOTTOM_HEIGHT / 2. + 100.),
+            (F_BOTTOM_WIDTH / 2. + 40., F_BOTTOM_HEIGHT / 2. + 95.),
             TextDrawStyle::default()
                 .with_scalar(0.8)
                 .with_color(TEXT_GREY_COLOR)
