@@ -11,12 +11,23 @@ use zombie::{BITE_REACH, ZOMBIE_WIDTH, Zombie, ZombieKind, ZombieState};
 
 pub const ROWS: usize = 5;
 pub const COLS: usize = 9;
-pub const CELL_W: f32 = 40.0;
-pub const CELL_H: f32 = 40.0;
-pub const LAWN_W: f32 = COLS as f32 * CELL_W;
 
-pub const LAWN_X: f32 = 20.0;
-pub const LAWN_Y: f32 = 30.0;
+/// Size of a cell in the simulation's logical pixels. Zombie speeds, bite
+/// reach, projectile speeds, etc. are all expressed in these units.
+pub const UNIT: f32 = 40.0;
+/// Logical width of the lawn.
+pub const LAWN_W: f32 = COLS as f32 * UNIT;
+
+/// On-screen cell size on the 320x240 bottom screen (9 * 35 = 315 px wide).
+pub const CELL_W: f32 = 35.0;
+pub const CELL_H: f32 = 35.0;
+/// Logical -> screen scale applied when drawing.
+const SCALE: f32 = CELL_W / UNIT;
+
+/// On-screen top-left of the lawn: centred horizontally, below the shop strip
+/// (which ends at y = 40). 48 + 5 * 35 = 223.
+pub const LAWN_X: f32 = (320.0 - COLS as f32 * CELL_W) / 2.0;
+pub const LAWN_Y: f32 = 48.0;
 
 #[derive(Default)]
 pub struct Economy {
@@ -114,7 +125,7 @@ impl MobManager {
                     continue;
                 }
 
-                let plant_x = col as f32 * CELL_W;
+                let plant_x = col as f32 * UNIT;
                 match plant.kind {
                     PlantKind::Peashooter => {
                         let zombie_ahead = self
@@ -122,7 +133,7 @@ impl MobManager {
                             .iter()
                             .any(|z| z.row == row && z.x < LAWN_W && z.x + ZOMBIE_WIDTH > plant_x);
                         if zombie_ahead {
-                            spawned.push(Projectile::pea(row, plant_x + CELL_W - 8.0));
+                            spawned.push(Projectile::pea(row, plant_x + UNIT - 8.0));
                             plant.timer = plant.kind.stats().cooldown;
                         }
                     }
@@ -168,7 +179,7 @@ impl MobManager {
 
             let probe = zombie.x + BITE_REACH;
             let plant = if (0.0..LAWN_W).contains(&probe) {
-                self.plants[zombie.row][(probe / CELL_W) as usize].as_mut()
+                self.plants[zombie.row][(probe / UNIT) as usize].as_mut()
             } else {
                 None
             };
@@ -220,15 +231,15 @@ impl MobManager {
             }
 
             for zombie in self.zombies.iter().filter(|z| z.row == row) {
-                draw_zombie(zombie, LAWN_X + zombie.x, row_y)?;
+                draw_zombie(zombie, LAWN_X + zombie.x * SCALE, row_y)?;
             }
 
             for projectile in self.projectiles.iter().filter(|p| p.row == row) {
                 fill_rect(
-                    LAWN_X + projectile.x - 3.0,
-                    row_y + CELL_H / 2.0 - 8.0,
-                    6.0,
-                    6.0,
+                    LAWN_X + (projectile.x - 3.0) * SCALE,
+                    row_y + (UNIT / 2.0 - 8.0) * SCALE,
+                    6.0 * SCALE,
+                    6.0 * SCALE,
                     PEA_COLOR,
                 )?;
             }
@@ -238,6 +249,7 @@ impl MobManager {
     }
 }
 
+/// On-screen top-left of a lawn cell.
 pub fn cell_origin(row: usize, col: usize) -> (f32, f32) {
     (LAWN_X + col as f32 * CELL_W, LAWN_Y + row as f32 * CELL_H)
 }
@@ -265,9 +277,9 @@ fn draw_hp_bar(x: f32, y: f32, w: f32, hp: i32, max_hp: i32) -> Result<(), Error
 
 fn draw_plant(plant: &Plant, x: f32, y: f32) -> Result<(), Error> {
     let (color, inset) = match plant.kind {
-        PlantKind::Sunflower => (0xf9c74fff, 8.0),
-        PlantKind::Peashooter => (0x2d9e3cff, 8.0),
-        PlantKind::Wall => (0x9c6b3eff, 5.0),
+        PlantKind::Sunflower => (0xf9c74fff, 8.0 * SCALE),
+        PlantKind::Peashooter => (0x2d9e3cff, 8.0 * SCALE),
+        PlantKind::Wall => (0x9c6b3eff, 5.0 * SCALE),
     };
     fill_rect(
         x + inset,
@@ -277,9 +289,9 @@ fn draw_plant(plant: &Plant, x: f32, y: f32) -> Result<(), Error> {
         color,
     )?;
     draw_hp_bar(
-        x + 6.0,
+        x + 6.0 * SCALE,
         y + 2.0,
-        CELL_W - 12.0,
+        CELL_W - 12.0 * SCALE,
         plant.hp,
         plant.kind.stats().hp,
     )
@@ -290,12 +302,7 @@ fn draw_zombie(zombie: &Zombie, x: f32, row_y: f32) -> Result<(), Error> {
         ZombieState::Walking => 0x7f8c8dff,
         ZombieState::Eating => 0xa05a5aff,
     };
-    fill_rect(x, row_y + 8.0, ZOMBIE_WIDTH, CELL_H - 12.0, color)?;
-    draw_hp_bar(
-        x,
-        row_y + 4.0,
-        ZOMBIE_WIDTH,
-        zombie.hp,
-        zombie.kind.stats().hp,
-    )
+    let w = ZOMBIE_WIDTH * SCALE;
+    fill_rect(x, row_y + 8.0 * SCALE, w, CELL_H - 12.0 * SCALE, color)?;
+    draw_hp_bar(x, row_y + 4.0 * SCALE, w, zombie.hp, zombie.kind.stats().hp)
 }
