@@ -57,7 +57,7 @@ impl Scene for EndScene {
 
         Text::new(
             "YOU LOST\nTHE GAME",
-            (F_BOTTOM_WIDTH / 2., F_BOTTOM_HEIGHT / 2.),
+            (F_BOTTOM_WIDTH / 2. + 50., F_BOTTOM_HEIGHT / 2. - 50.),
             TextDrawStyle::default()
                 .with_scalar(2.5)
                 .with_color(TEXT_COLOR)
@@ -65,8 +65,25 @@ impl Scene for EndScene {
         )
         .blit()?;
 
-        //TODO: add score display?
-        //TODO: add "press A to continue" or something
+        Text::new(
+            "TODO score/survived time display",
+            (F_BOTTOM_WIDTH / 2. + 40., F_BOTTOM_HEIGHT / 2. + 45.),
+            TextDrawStyle::default()
+                .with_scalar(0.8)
+                .with_color(TEXT_COLOR)
+                .with_alignment(HorizAlignment::Center, VertAlignment::Center),
+        )
+        .blit()?;
+
+        Text::new(
+            "press anywhere or press\nA / START to continue",
+            (F_BOTTOM_WIDTH / 2. + 40., F_BOTTOM_HEIGHT / 2. + 100.),
+            TextDrawStyle::default()
+                .with_scalar(0.8)
+                .with_color(TEXT_COLOR)
+                .with_alignment(HorizAlignment::Center, VertAlignment::Center),
+        )
+        .blit()?;
 
         Ok(draw_target.end())
     }
