@@ -8,6 +8,7 @@ use ctru::{
 };
 
 use crate::{
+    frame,
     input::Input,
     mobs::{
         CELL_H, CELL_W, COLS, Economy, MobManager, Outcome, ROWS, cell_origin, plant::PlantKind,
@@ -154,7 +155,7 @@ impl Scene for GameScene {
         &mut self,
         target: Target<'s, TopScreen, ReadyMode>,
     ) -> Result<Target<'s, TopScreen, ReadyMode>, Error> {
-        let mut draw_target = target.begin();
+        let mut draw_target = frame::begin_scene(target);
         draw_target.clear(BACKGROUND);
 
         let kind = self.selected_kind();
@@ -185,14 +186,14 @@ impl Scene for GameScene {
         )
         .blit()?;
 
-        Ok(draw_target.end())
+        Ok(frame::end_scene(draw_target))
     }
 
     fn draw_bottom<'s>(
         &mut self,
         target: Target<'s, BottomScreen, ReadyMode>,
     ) -> Result<Target<'s, BottomScreen, ReadyMode>, Error> {
-        let mut draw_target = target.begin();
+        let mut draw_target = frame::begin_scene(target);
         draw_target.clear(BACKGROUND);
 
         let center = F_BOTTOM_WIDTH / 2.;
@@ -211,7 +212,7 @@ impl Scene for GameScene {
         if self.outcome == Outcome::Lost {
             line("The zombies ate your brains!", 100., 0.9, LOST_COLOR)?;
             line("Press A to return to the title", 140., 0.7, TEXT_COLOR)?;
-            return Ok(draw_target.end());
+            return Ok(frame::end_scene(draw_target));
         }
 
         line(
@@ -228,6 +229,6 @@ impl Scene for GameScene {
             line(message, 200., 0.8, LOST_COLOR)?;
         }
 
-        Ok(draw_target.end())
+        Ok(frame::end_scene(draw_target))
     }
 }

@@ -8,6 +8,7 @@ use ctru::{
 };
 
 use crate::{
+    frame,
     input::Input,
     scene::{Scene, Transition},
     scenes::game::GameScene,
@@ -103,19 +104,19 @@ impl Scene for TitleScene {
         &mut self,
         target: Target<'s, TopScreen, ReadyMode>,
     ) -> Result<Target<'s, TopScreen, ReadyMode>, Error> {
-        let mut draw_target = target.begin();
+        let mut draw_target = frame::begin_scene(target);
         draw_target.clear(BACKGROUND);
 
         self.logo.blit()?;
 
-        Ok(draw_target.end())
+        Ok(frame::end_scene(draw_target))
     }
 
     fn draw_bottom<'s>(
         &mut self,
         target: Target<'s, BottomScreen, ReadyMode>,
     ) -> Result<Target<'s, BottomScreen, ReadyMode>, Error> {
-        let mut draw_target = target.begin();
+        let mut draw_target = frame::begin_scene(target);
         draw_target.clear(BACKGROUND);
 
         let fill = if self.button_touched {
@@ -166,6 +167,6 @@ impl Scene for TitleScene {
         )
         .blit()?;
 
-        Ok(draw_target.end())
+        Ok(frame::end_scene(draw_target))
     }
 }

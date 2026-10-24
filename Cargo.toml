@@ -11,5 +11,7 @@ authors = ["Haj Dev"]
 [dependencies]
 cabbage = { git = "https://git.sr.ht/~sheepy/cabbage" }
 citro2d = { git = "https://git.sr.ht/~sheepy/citro2d-rs" }
+citro2d-sys = { git = "https://git.sr.ht/~sheepy/citro2d-rs" }
 citro3d = { git = "https://github.com/rust3ds/citro3d-rs" }
+citro3d-sys = { git = "https://github.com/rust3ds/citro3d-rs" }
 ctru-rs = { git = "https://github.com/rust3ds/ctru-rs" }

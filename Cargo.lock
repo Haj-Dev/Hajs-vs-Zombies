@@ -8,7 +8,9 @@ version = "0.1.0"
 dependencies = [
  "cabbage",
  "citro2d",
+ "citro2d-sys",
  "citro3d",
+ "citro3d-sys",
  "ctru-rs",
 ]
 
