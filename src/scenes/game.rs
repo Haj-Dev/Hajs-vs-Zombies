@@ -241,7 +241,7 @@ impl Scene for GameScene {
         self.update_waves();
         self.outcome = self.mobs.update(&mut self.economy);
         if self.outcome == Outcome::Lost {
-            return Transition::Push(Box::new(EndScene::new()));
+            return Transition::Push(Box::new(EndScene::new(self.frame / FPS)));
         }
 
         self.message = match self.message {

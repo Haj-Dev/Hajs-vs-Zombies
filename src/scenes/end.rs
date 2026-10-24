@@ -14,14 +14,16 @@ use crate::{
 };
 
 const BACKGROUND: Rgba = 0xffffffff;
-const TEXT_COLOR: Rgba = 0xff0000ff;
+const TEXT_RED_COLOR: Rgba = 0xff0000ff;
+const TEXT_GREY_COLOR: Rgba = 0x222222ff;
 
 pub struct EndScene {
     logo: Sprite<'static>,
+    survived_time_seconds: u32,
 }
 
 impl EndScene {
-    pub fn new() -> Self {
+    pub fn new(survived_time_seconds: u32) -> Self {
         let sheet: &'static SpriteSheet = Box::leak(Box::new(
             SpriteSheet::new("romfs:/end.t3x").expect("failed to load romfs:/end.t3x"),
         ));
@@ -31,8 +33,15 @@ impl EndScene {
             (F_BOTTOM_WIDTH / 2., F_BOTTOM_HEIGHT / 2.),
             (1., 1.),
         );
-        Self { logo }
+        Self {
+            logo,
+            survived_time_seconds,
+        }
     }
+}
+
+fn survival_time(seconds: u32) -> String {
+    format!("{}:{:02}", seconds / 60, seconds % 60)
 }
 
 impl Scene for EndScene {
@@ -60,17 +69,20 @@ impl Scene for EndScene {
             (F_BOTTOM_WIDTH / 2. + 50., F_BOTTOM_HEIGHT / 2. - 50.),
             TextDrawStyle::default()
                 .with_scalar(2.5)
-                .with_color(TEXT_COLOR)
+                .with_color(TEXT_RED_COLOR)
                 .with_alignment(HorizAlignment::Center, VertAlignment::Center),
         )
         .blit()?;
 
         Text::new(
-            "TODO score/survived time display",
-            (F_BOTTOM_WIDTH / 2. + 40., F_BOTTOM_HEIGHT / 2. + 45.),
+            &format!(
+                "You survived for {}",
+                survival_time(self.survived_time_seconds)
+            ),
+            (F_BOTTOM_WIDTH / 2. + 40., F_BOTTOM_HEIGHT / 2. + 62.),
             TextDrawStyle::default()
                 .with_scalar(0.8)
-                .with_color(TEXT_COLOR)
+                .with_color(TEXT_GREY_COLOR)
                 .with_alignment(HorizAlignment::Center, VertAlignment::Center),
         )
         .blit()?;
@@ -80,7 +92,7 @@ impl Scene for EndScene {
             (F_BOTTOM_WIDTH / 2. + 40., F_BOTTOM_HEIGHT / 2. + 100.),
             TextDrawStyle::default()
                 .with_scalar(0.8)
-                .with_color(TEXT_COLOR)
+                .with_color(TEXT_GREY_COLOR)
                 .with_alignment(HorizAlignment::Center, VertAlignment::Center),
         )
         .blit()?;
