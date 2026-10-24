@@ -9,6 +9,7 @@ use ctru::services::hid::{Hid, KeyPad};
 pub struct Input {
     pressed: KeyPad,
     touch: Option<(u16, u16)>,
+    touch_started: Option<(u16, u16)>,
 }
 
 impl Input {
@@ -17,9 +18,11 @@ impl Input {
     /// [`Hid::scan_input`] must have been called earlier in the frame.
     pub fn new(hid: &Hid) -> Self {
         let held = hid.keys_held();
+        let down = hid.keys_down();
         Self {
-            pressed: hid.keys_down(),
+            pressed: down,
             touch: held.contains(KeyPad::TOUCH).then(|| hid.touch_position()),
+            touch_started: down.contains(KeyPad::TOUCH).then(|| hid.touch_position()),
         }
     }
 
@@ -31,5 +34,10 @@ impl Input {
     /// The touchscreen position, if the screen is currently being touched.
     pub fn touch(&self) -> Option<(u16, u16)> {
         self.touch
+    }
+
+    /// The position of a touch that began this frame, if any.
+    pub fn touch_started(&self) -> Option<(u16, u16)> {
+        self.touch_started
     }
 }
