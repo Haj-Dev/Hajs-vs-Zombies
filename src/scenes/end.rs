@@ -1,0 +1,85 @@
+//! the ending scene.
+
+use cabbage::{F_BOTTOM_HEIGHT, F_BOTTOM_WIDTH, prelude::Error};
+use citro2d::prelude::*;
+use ctru::{
+    prelude::*,
+    services::gfx::{BottomScreen, TopScreen},
+};
+
+use crate::{
+    input::Input,
+    scene::{Scene, Transition},
+    scenes::title::TitleScene,
+};
+
+const BACKGROUND: Rgba = 0xffffffff;
+const TEXT_COLOR: Rgba = 0xff0000ff;
+
+pub struct EndScene {
+    logo: Sprite<'static>,
+}
+
+impl EndScene {
+    pub fn new() -> Self {
+        let sheet: &'static SpriteSheet = Box::leak(Box::new(
+            SpriteSheet::new("romfs:/end.t3x").expect("failed to load romfs:/end.t3x"),
+        ));
+        let logo = Sprite::new(
+            sheet,
+            0,
+            (F_BOTTOM_WIDTH / 2., F_BOTTOM_HEIGHT / 2.),
+            (1., 1.),
+        );
+        Self { logo }
+    }
+}
+
+impl Scene for EndScene {
+    fn update(&mut self, input: &Input) -> Transition {
+        let screen_touched: bool = input.touch().is_some();
+
+        if input.pressed(KeyPad::A) || input.pressed(KeyPad::START) || screen_touched {
+            Transition::Push(Box::new(TitleScene::new()))
+        } else if input.pressed(KeyPad::SELECT) {
+            Transition::Quit
+        } else {
+            Transition::None
+        }
+    }
+
+    fn draw_top<'s>(
+        &mut self,
+        target: Target<'s, TopScreen, ReadyMode>,
+    ) -> Result<Target<'s, TopScreen, ReadyMode>, Error> {
+        let mut draw_target = target.begin();
+        draw_target.clear(BACKGROUND);
+
+        Text::new(
+            "YOU LOST\nTHE GAME",
+            (F_BOTTOM_WIDTH / 2., F_BOTTOM_HEIGHT / 2.),
+            TextDrawStyle::default()
+                .with_scalar(2.5)
+                .with_color(TEXT_COLOR)
+                .with_alignment(HorizAlignment::Center, VertAlignment::Center),
+        )
+        .blit()?;
+
+        //TODO: add score display?
+        //TODO: add "press A to continue" or something
+
+        Ok(draw_target.end())
+    }
+
+    fn draw_bottom<'s>(
+        &mut self,
+        target: Target<'s, BottomScreen, ReadyMode>,
+    ) -> Result<Target<'s, BottomScreen, ReadyMode>, Error> {
+        let mut draw_target = target.begin();
+        draw_target.clear(BACKGROUND);
+
+        self.logo.blit()?;
+
+        Ok(draw_target.end())
+    }
+}

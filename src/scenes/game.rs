@@ -14,13 +14,13 @@ use crate::{
         zombie::ZombieKind,
     },
     scene::{Scene, Transition},
+    scenes::end::EndScene,
 };
 
 const BACKGROUND: Rgba = 0xeff1f5ff;
 const TEXT_COLOR: Rgba = 0x4c4f69ff;
 const ACCENT: Rgba = 0xdf8e1dff;
 const CURSOR_FILL: Rgba = 0xdf8e1d70;
-const LOST_COLOR: Rgba = 0xd20f39ff;
 
 const STARTING_SUN: u32 = 150;
 const SKY_SUN_INTERVAL: u32 = 8 * 60;
@@ -119,15 +119,6 @@ impl Default for GameScene {
 
 impl Scene for GameScene {
     fn update(&mut self, input: &Input) -> Transition {
-        if self.outcome == Outcome::Lost {
-            let leave = input.pressed(KeyPad::A | KeyPad::B | KeyPad::START);
-            return if leave {
-                Transition::Pop
-            } else {
-                Transition::None
-            };
-        }
-
         if input.pressed(KeyPad::B) {
             return Transition::Pop;
         }
@@ -140,6 +131,9 @@ impl Scene for GameScene {
         }
         self.update_waves();
         self.outcome = self.mobs.update(&mut self.economy);
+        if self.outcome == Outcome::Lost {
+            return Transition::Push(Box::new(EndScene::new()));
+        }
 
         self.message = match self.message {
             Some((text, frames)) if frames > 1 => Some((text, frames - 1)),
@@ -207,12 +201,6 @@ impl Scene for GameScene {
             .blit()
         };
 
-        if self.outcome == Outcome::Lost {
-            line("The zombies ate your brains!", 100., 0.9, LOST_COLOR)?;
-            line("Press A to return to the title", 140., 0.7, TEXT_COLOR)?;
-            return Ok(draw_target.end());
-        }
-
         line(
             &format!("Zombies on the lawn: {}", self.mobs.zombie_count()),
             40.,
@@ -224,7 +212,7 @@ impl Scene for GameScene {
         line("B: back to the title", 150., 0.65, TEXT_COLOR)?;
 
         if let Some((message, _)) = self.message {
-            line(message, 200., 0.8, LOST_COLOR)?;
+            line(message, 200., 0.8, TEXT_COLOR)?;
         }
 
         Ok(draw_target.end())
