@@ -11,9 +11,16 @@ use ctru::{
 };
 
 use crate::{
-    assets::{load_sheet, place}, frame, input::Input, mobs::{
-        CELL_H, CELL_W, COLS, Economy, MobManager, MobSprites, Outcome, ROWS, cell_origin, plant::PlantKind, zombie::ZombieKind,
-    }, scene::{Scene, Transition}, scenes::{end::EndScene, pause::PauseScene},
+    assets::load_sheet,
+    frame,
+    input::Input,
+    mobs::{
+        CELL_H, CELL_W, COLS, Economy, MobManager, MobSprites, Outcome, ROWS, cell_origin, plant::PlantKind,
+        zombie::ZombieKind,
+    },
+    scene::{Scene, Track, Transition},
+    scenes::end::EndScene,
+    scenes::pause::PauseScene,
 };
 
 const BACKGROUND: Rgba = 0xeff1f5ff;
@@ -275,6 +282,10 @@ impl Scene for GameScene {
         };
 
         Transition::None
+    }
+
+    fn music(&self) -> Option<Track> {
+        Some(Track::Game)
     }
 
     fn draw_top<'s>(

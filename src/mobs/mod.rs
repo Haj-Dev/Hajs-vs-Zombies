@@ -30,6 +30,8 @@ pub const LAWN_Y: f32 = 72.0;
 const PLANTING_FRAMES: usize = 5;
 const PLANTING_FRAME_DELAY: u8 = 3;
 
+const PLANT_REGENERATION_RATE: f32 = 0.1;
+
 #[derive(Default)]
 pub struct Economy {
     pub sun: u32,
@@ -231,6 +233,11 @@ impl MobManager {
                     }
                     PlantKind::Wall => {}
                 }
+
+                //passive hp regeneration for plants
+                if plant.hp < plant.kind.stats().hp {
+                    plant.hp += PLANT_REGENERATION_RATE;
+                }
             }
         }
 
@@ -369,8 +376,8 @@ fn draw_plant(plant: &Plant, x: f32, y: f32, sprite: &mut Sprite<'_>) -> Result<
         x + 3.0,
         y + 1.0,
         CELL_W - 6.0,
-        plant.hp,
-        plant.kind.stats().hp,
+        plant.hp as i32,
+        plant.kind.stats().hp as i32,
     )
 }
 
@@ -401,5 +408,11 @@ fn draw_zombie(zombie: &Zombie, x: f32, row_y: f32) -> Result<(), Error> {
     };
     let w = ZOMBIE_WIDTH * SCALE;
     fill_rect(x, row_y + 8.0 * SCALE, w, CELL_H - 12.0 * SCALE, color)?;
-    draw_hp_bar(x, row_y + 4.0 * SCALE, w, zombie.hp, zombie.kind.stats().hp)
+    draw_hp_bar(
+        x,
+        row_y + 4.0 * SCALE,
+        w,
+        zombie.hp as i32,
+        zombie.kind.stats().hp as i32,
+    )
 }

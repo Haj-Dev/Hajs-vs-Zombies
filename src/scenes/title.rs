@@ -10,7 +10,7 @@ use ctru::{
 use crate::{
     frame,
     input::Input,
-    scene::{Scene, Transition},
+    scene::{Scene, Track, Transition},
     scenes::game::GameScene,
 };
 
@@ -98,6 +98,10 @@ impl Scene for TitleScene {
         } else {
             Transition::None
         }
+    }
+
+    fn music(&self) -> Option<Track> {
+        Some(Track::Title)
     }
 
     fn draw_top<'s>(

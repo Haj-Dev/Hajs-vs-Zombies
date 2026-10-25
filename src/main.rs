@@ -1,7 +1,10 @@
+//! Hajs vs Zombies.
+
 mod assets;
 mod frame;
 mod input;
 mod mobs;
+mod music;
 mod scene;
 mod scenes;
 
@@ -9,10 +12,13 @@ use cabbage::prelude::*;
 use citro2d::prelude::*;
 use ctru::{
     prelude::*,
-    services::gfx::{BottomScreen, TopScreen},
+    services::{
+        gfx::{BottomScreen, TopScreen},
+        ndsp::{Ndsp, OutputMode},
+    },
 };
 
-use crate::{input::Input, scene::SceneManager, scenes::title::TitleScene};
+use crate::{input::Input, music::Music, scene::SceneManager, scenes::title::TitleScene};
 
 /// Top-level game state, owned by the framework's [`State`].
 pub struct App {
@@ -43,6 +49,14 @@ impl StateImpl<App> for State<'_, App> {
             &c2d_instance,
         );
 
+        // Devices without DSP firmware (and emulators with no dump of it) cannot
+        // play audio, so the game keeps running silently instead of failing.
+        let mut ndsp = Ndsp::new().ok();
+        if let Some(ndsp) = ndsp.as_mut() {
+            ndsp.set_output_mode(OutputMode::Stereo);
+        }
+        let mut music = ndsp.as_ref().and_then(|ndsp| Music::new(ndsp).ok());
+
         while self.handles.apt.main_loop() {
             self.handles.hid.scan_input();
             let input = Input::new(self.handles.hid);
@@ -53,6 +67,10 @@ impl StateImpl<App> for State<'_, App> {
             }
 
             frame::begin();
+            if let Some(music) = music.as_mut() {
+                self.app.scenes.sync_music(music);
+            }
+
             top_target = self.app.scenes.draw_top(top_target)?;
             bottom_target = self.app.scenes.draw_bottom(bottom_target)?;
             frame::end();

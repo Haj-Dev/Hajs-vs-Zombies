@@ -10,7 +10,7 @@ use ctru::{
 use crate::{
     frame,
     input::Input,
-    scene::{Scene, Transition},
+    scene::{Scene, Track, Transition},
 };
 
 const BACKGROUND: Rgba = 0xeff1f5ff;
@@ -122,6 +122,10 @@ impl Scene for PauseScene {
         }
 
         Transition::None
+    }
+
+    fn music(&self) -> Option<Track> {
+        Some(Track::Game)
     }
 
     fn draw_top<'s>(

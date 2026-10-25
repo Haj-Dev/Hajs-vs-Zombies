@@ -1,5 +1,5 @@
 const PEA_SPEED: f32 = 3.0;
-const PEA_DAMAGE: i32 = 20;
+const PEA_DAMAGE: f32 = 20.0;
 
 pub const BULLET_SPIN_SPEED: f32 = 18.0;
 pub const EXPLOSION_FRAMES: usize = 3;
@@ -14,7 +14,7 @@ pub enum ProjectileState {
 pub struct Projectile {
     pub row: usize,
     pub x: f32,
-    pub damage: i32,
+    pub damage: f32,
     pub speed: f32,
     pub state: ProjectileState,
     pub spin: f32,
