@@ -27,6 +27,9 @@ const SCALE: f32 = CELL_W / UNIT;
 pub const LAWN_X: f32 = 36.0;
 pub const LAWN_Y: f32 = 72.0;
 
+const PLANTING_FRAMES: usize = 5;
+const PLANTING_FRAME_DELAY: u8 = 3;
+
 #[derive(Default)]
 pub struct Economy {
     pub sun: u32,
@@ -55,12 +58,45 @@ impl PlaceError {
     }
 }
 
+struct PlantingEffect {
+    row: usize,
+    col: usize,
+    frame: u8,
+    timer: u8,
+}
+
+impl PlantingEffect {
+    fn new(row: usize, col: usize) -> Self {
+        Self {
+            row,
+            col,
+            frame: 0,
+            timer: PLANTING_FRAME_DELAY,
+        }
+    }
+
+    fn tick(&mut self) -> bool {
+        if self.timer > 0 {
+            self.timer -= 1;
+            return true;
+        }
+
+        self.frame += 1;
+        if self.frame as usize >= PLANTING_FRAMES {
+            return false;
+        }
+        self.timer = PLANTING_FRAME_DELAY;
+        true
+    }
+}
+
 struct MobSprites {
     sunflower: Sprite<'static>,
     peashooter: Sprite<'static>,
     wall: Sprite<'static>,
     bullet: Sprite<'static>,
     explosions: [Sprite<'static>; EXPLOSION_FRAMES],
+    planting: [Sprite<'static>; PLANTING_FRAMES],
 }
 
 impl MobSprites {
@@ -69,6 +105,7 @@ impl MobSprites {
         let peashooter_sheet = load_sheet("romfs:/hajs/haj-tireur-mk2.t3x");
         let wall_sheet = load_sheet("romfs:/hajs/pumpkin-haj.t3x");
         let bullet_sheet = load_sheet("romfs:/bullet.t3x");
+        let planting_sheet = load_sheet("romfs:/planting-anim.t3x");
 
         Self {
             sunflower: Sprite::new(sunflower_sheet, 0, (0., 0.), (1., 1.)),
@@ -80,6 +117,9 @@ impl MobSprites {
                 Sprite::new(bullet_sheet, 2, (0., 0.), (1., 1.)),
                 Sprite::new(bullet_sheet, 3, (0., 0.), (1., 1.)),
             ],
+            planting: std::array::from_fn(|index| {
+                Sprite::new(planting_sheet, index, (0., 0.), (1., 1.))
+            }),
         }
     }
 
@@ -96,6 +136,7 @@ pub struct MobManager {
     plants: [[Option<Plant>; COLS]; ROWS],
     zombies: Vec<Zombie>,
     projectiles: Vec<Projectile>,
+    planting_effects: Vec<PlantingEffect>,
     sprites: MobSprites,
 }
 
@@ -105,6 +146,7 @@ impl MobManager {
             plants: std::array::from_fn(|_| std::array::from_fn(|_| None)),
             zombies: Vec::new(),
             projectiles: Vec::new(),
+            planting_effects: Vec::new(),
             sprites: MobSprites::load(),
         }
     }
@@ -132,6 +174,7 @@ impl MobManager {
 
         economy.sun -= cost;
         *cell = Some(Plant::new(kind));
+        self.planting_effects.push(PlantingEffect::new(row, col));
         Ok(())
     }
 
@@ -148,6 +191,7 @@ impl MobManager {
         self.update_plants(economy);
         self.update_projectiles();
         self.update_zombies();
+        self.update_planting_effects();
         self.remove_dead();
 
         if self.zombies.iter().any(|z| z.x <= 0.0) {
@@ -244,6 +288,10 @@ impl MobManager {
         }
     }
 
+    fn update_planting_effects(&mut self) {
+        self.planting_effects.retain_mut(PlantingEffect::tick);
+    }
+
     fn remove_dead(&mut self) {
         self.zombies.retain(|z| !z.is_dead());
 
@@ -277,6 +325,14 @@ impl MobManager {
                     &mut self.sprites,
                 )?;
             }
+        }
+
+        for effect in &self.planting_effects {
+            let (x, y) = cell_origin(effect.row, effect.col);
+            let frame = (effect.frame as usize).min(PLANTING_FRAMES - 1);
+            let sprite = &mut self.sprites.planting[frame];
+            place(sprite, (x + CELL_W / 2.0, y + CELL_H * 0.75));
+            sprite.blit()?;
         }
 
         Ok(())
