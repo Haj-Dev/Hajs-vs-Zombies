@@ -11,16 +11,10 @@ use ctru::{
 };
 
 use crate::{
-    assets::load_sheet,
-    frame,
-    input::Input,
-    mobs::{
+    assets::{load_sheet, place}, frame, input::Input, mobs::{
         CELL_H, CELL_W, COLS, Economy, MobManager, MobSprites, Outcome, ROWS, cell_origin, plant::PlantKind,
         zombie::ZombieKind,
-    },
-    scene::{Scene, Track, Transition},
-    scenes::end::EndScene,
-    scenes::pause::PauseScene,
+    }, scene::{Scene, Track, Transition}, scenes::{end::EndScene, pause::PauseScene},
 };
 
 const BACKGROUND: Rgba = 0xeff1f5ff;
