@@ -4,7 +4,29 @@ use cabbage::prelude::Error;
 use citro2d::render::{ReadyMode, Target};
 use ctru::services::gfx::{BottomScreen, TopScreen};
 
-use crate::input::Input;
+use crate::{input::Input, music::Music};
+
+/// A background track a scene can ask for.
+///
+/// Scenes that return the same track share it: the music keeps playing
+/// uninterrupted when moving between them.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Track {
+    /// The title screen theme.
+    Title,
+    /// The theme of the lawn.
+    Game,
+}
+
+impl Track {
+    /// The file this track is streamed from.
+    pub fn path(self) -> &'static str {
+        match self {
+            Track::Title => "romfs:/musics/pvzhalloween.pcm",
+            Track::Game => "romfs:/musics/loonboon.pcm",
+        }
+    }
+}
 
 /// What the [`SceneManager`] should do once a scene has been updated.
 pub enum Transition {
@@ -36,6 +58,14 @@ pub trait Scene {
         &mut self,
         target: Target<'s, BottomScreen, ReadyMode>,
     ) -> Result<Target<'s, BottomScreen, ReadyMode>, Error>;
+
+    /// The music this scene wants playing, if any.
+    ///
+    /// Defaults to silence: scenes only need to override it when they bring
+    /// their own track.
+    fn music(&self) -> Option<Track> {
+        None
+    }
 }
 
 /// Holds the stack of active scenes and routes updates and draws to the top one.
@@ -78,6 +108,12 @@ impl SceneManager {
             }
             Transition::Quit => self.stack.clear(),
         }
+    }
+
+    /// Make the music follow whichever track the active scene asks for.
+    pub fn sync_music(&self, music: &mut Music<'_>) {
+        let wanted = self.stack.last().and_then(|scene| scene.music());
+        music.play(wanted);
     }
 
     /// Draw the active scene to the top screen.

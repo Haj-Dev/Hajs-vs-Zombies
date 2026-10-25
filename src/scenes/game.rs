@@ -18,7 +18,7 @@ use crate::{
         CELL_H, CELL_W, COLS, Economy, MobManager, Outcome, ROWS, cell_origin, plant::PlantKind,
         zombie::ZombieKind,
     },
-    scene::{Scene, Transition},
+    scene::{Scene, Track, Transition},
     scenes::end::EndScene,
     scenes::pause::PauseScene,
 };
@@ -278,6 +278,10 @@ impl Scene for GameScene {
         };
 
         Transition::None
+    }
+
+    fn music(&self) -> Option<Track> {
+        Some(Track::Game)
     }
 
     fn draw_top<'s>(
