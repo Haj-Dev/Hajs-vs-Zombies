@@ -1,4 +1,4 @@
-pub mod plant;
+pub mod haj;
 pub mod projectile;
 pub mod zombie;
 
@@ -6,7 +6,7 @@ use cabbage::prelude::Error;
 use citro2d::prelude::*;
 
 use crate::assets::{load_sheet, place};
-use plant::{Plant, PlantKind};
+use haj::{Haj, HajKind};
 use projectile::{BULLET_SPIN_SPEED, EXPLOSION_FRAMES, Projectile, ProjectileState};
 use zombie::{BITE_REACH, ZOMBIE_WIDTH, Zombie, ZombieKind, ZombieState};
 
@@ -27,10 +27,10 @@ const SCALE: f32 = CELL_W / UNIT;
 pub const LAWN_X: f32 = 36.0;
 pub const LAWN_Y: f32 = 72.0;
 
-const PLANTING_FRAMES: usize = 5;
-const PLANTING_FRAME_DELAY: u8 = 3;
+const HAJING_FRAMES: usize = 5;
+const HAJING_FRAME_DELAY: u8 = 3;
 
-const PLANT_REGENERATION_RATE: f32 = 0.1;
+const HAJ_REGENERATION_RATE: f32 = 0.1;
 
 #[derive(Default)]
 pub struct Economy {
@@ -57,7 +57,7 @@ impl PlaceError {
             Self::OutOfBounds => "Out of the lawn!",
             Self::Occupied => "This cell is taken!",
             Self::NotEnoughSun => "Not enough ikea points!",
-            Self::MaxLevelReached => "Plant is already at max level!",
+            Self::MaxLevelReached => "Haj is already at max level!",
         }
     }
 }
@@ -76,20 +76,20 @@ impl RemoveError {
     }
 }
 
-struct PlantingEffect {
+struct HajingEffect {
     row: usize,
     col: usize,
     frame: u8,
     timer: u8,
 }
 
-impl PlantingEffect {
+impl HajingEffect {
     fn new(row: usize, col: usize) -> Self {
         Self {
             row,
             col,
             frame: 0,
-            timer: PLANTING_FRAME_DELAY,
+            timer: HAJING_FRAME_DELAY,
         }
     }
 
@@ -100,10 +100,10 @@ impl PlantingEffect {
         }
 
         self.frame += 1;
-        if self.frame as usize >= PLANTING_FRAMES {
+        if self.frame as usize >= HAJING_FRAMES {
             return false;
         }
-        self.timer = PLANTING_FRAME_DELAY;
+        self.timer = HAJING_FRAME_DELAY;
         true
     }
 }
@@ -115,7 +115,7 @@ pub struct MobSprites {
     hajolantern: Sprite<'static>,
     bullet: Sprite<'static>,
     explosions: [Sprite<'static>; EXPLOSION_FRAMES],
-    planting: [Sprite<'static>; PLANTING_FRAMES],
+    hajing: [Sprite<'static>; HAJING_FRAMES],
 }
 
 impl MobSprites {
@@ -125,7 +125,7 @@ impl MobSprites {
         let hajshooter_evolved_sheet = load_sheet("romfs:/hajs/haj-tireur-mk2.t3x");
         let hajolantern_sheet = load_sheet("romfs:/hajs/pumpkin-haj.t3x");
         let bullet_sheet = load_sheet("romfs:/bullet.t3x");
-        let planting_sheet = load_sheet("romfs:/planting-anim.t3x");
+        let hajing_sheet = load_sheet("romfs:/hajing-anim.t3x");
 
         Self {
             ikehaj: Sprite::new(ikehaj_sheet, 0, (0., 0.), (1., 1.)),
@@ -138,57 +138,57 @@ impl MobSprites {
                 Sprite::new(bullet_sheet, 2, (0., 0.), (1., 1.)),
                 Sprite::new(bullet_sheet, 3, (0., 0.), (1., 1.)),
             ],
-            planting: std::array::from_fn(|index| {
-                Sprite::new(planting_sheet, index, (0., 0.), (1., 1.))
+            hajing: std::array::from_fn(|index| {
+                Sprite::new(hajing_sheet, index, (0., 0.), (1., 1.))
             }),
         }
     }
 
-    pub fn plant(&mut self, kind: PlantKind, evolved: bool) -> &mut Sprite<'static> {
+    pub fn haj(&mut self, kind: HajKind, evolved: bool) -> &mut Sprite<'static> {
         match kind {
-            PlantKind::HajShooter if evolved => &mut self.hajshooter_evolved,
-            PlantKind::HajShooter => &mut self.hajshooter,
-            PlantKind::Ikehaj => &mut self.ikehaj,
-            PlantKind::HajOLantern => &mut self.hajolantern,
+            HajKind::Mhaj if evolved => &mut self.hajshooter_evolved,
+            HajKind::Mhaj => &mut self.hajshooter,
+            HajKind::Ikehaj => &mut self.ikehaj,
+            HajKind::HajOLantern => &mut self.hajolantern,
         }
     }
 }
 
 pub struct MobManager {
-    plants: [[Option<Plant>; COLS]; ROWS],
+    hajs: [[Option<Haj>; COLS]; ROWS],
     zombies: Vec<Zombie>,
     projectiles: Vec<Projectile>,
-    planting_effects: Vec<PlantingEffect>,
+    hajing_effects: Vec<HajingEffect>,
     sprites: MobSprites,
 }
 
 impl MobManager {
     pub fn new() -> Self {
         Self {
-            plants: std::array::from_fn(|_| std::array::from_fn(|_| None)),
+            hajs: std::array::from_fn(|_| std::array::from_fn(|_| None)),
             zombies: Vec::new(),
             projectiles: Vec::new(),
-            planting_effects: Vec::new(),
+            hajing_effects: Vec::new(),
             sprites: MobSprites::load(),
         }
     }
 
-    pub fn plant_at(&self, row: usize, col: usize) -> Option<&Plant> {
-        self.plants
+    pub fn haj_at(&self, row: usize, col: usize) -> Option<&Haj> {
+        self.hajs
             .get(row)
             .and_then(|cells| cells.get(col))
             .and_then(|cell| cell.as_ref())
     }
 
-    pub fn place_plant(
+    pub fn place_haj(
         &mut self,
         economy: &mut Economy,
         row: usize,
         col: usize,
-        kind: PlantKind,
+        kind: HajKind,
     ) -> Result<(), PlaceError> {
         let cell = self
-            .plants
+            .hajs
             .get_mut(row)
             .and_then(|cells| cells.get_mut(col))
             .ok_or(PlaceError::OutOfBounds)?;
@@ -202,29 +202,29 @@ impl MobManager {
         }
 
         economy.sun -= cost;
-        *cell = Some(Plant::new(kind));
-        self.planting_effects.push(PlantingEffect::new(row, col));
+        *cell = Some(Haj::new(kind));
+        self.hajing_effects.push(HajingEffect::new(row, col));
         Ok(())
     }
 
-    pub fn upgrade_plant(
+    pub fn upgrade_haj(
         &mut self,
         economy: &mut Economy,
         row: usize,
         col: usize,
     ) -> Result<(), PlaceError> {
         let cell = self
-            .plants
+            .hajs
             .get_mut(row)
             .and_then(|cells| cells.get_mut(col))
             .ok_or(PlaceError::OutOfBounds)?;
 
-        let Some(plant) = cell.as_mut() else {
+        let Some(haj) = cell.as_mut() else {
             return Err(PlaceError::Occupied);
         };
 
-        let stats = plant.kind.stats();
-        if plant.level >= stats.max_level - 1 {
+        let stats = haj.kind.stats();
+        if haj.level >= stats.max_level - 1 {
             return Err(PlaceError::MaxLevelReached);
         }
 
@@ -234,14 +234,14 @@ impl MobManager {
         }
 
         economy.sun -= upgrade_cost;
-        plant.level = (plant.level + 1).min(stats.max_level);
-        self.planting_effects.push(PlantingEffect::new(row, col));
+        haj.level = (haj.level + 1).min(stats.max_level);
+        self.hajing_effects.push(HajingEffect::new(row, col));
         Ok(())
     }
 
-    pub fn remove_plant(&mut self, row: usize, col: usize) -> Result<(), RemoveError> {
+    pub fn remove_haj(&mut self, row: usize, col: usize) -> Result<(), RemoveError> {
         let cell = self
-            .plants
+            .hajs
             .get_mut(row)
             .and_then(|cells| cells.get_mut(col))
             .ok_or(RemoveError::OutOfBounds)?;
@@ -259,10 +259,10 @@ impl MobManager {
     }
 
     pub fn update(&mut self, economy: &mut Economy) -> Outcome {
-        self.update_plants(economy);
+        self.update_hajs(economy);
         self.update_projectiles();
         self.update_zombies();
-        self.update_planting_effects();
+        self.update_hajing_effects();
         self.remove_dead();
 
         if self.zombies.iter().any(|z| z.x <= 0.0) {
@@ -272,48 +272,47 @@ impl MobManager {
         }
     }
 
-    fn update_plants(&mut self, economy: &mut Economy) {
+    fn update_hajs(&mut self, economy: &mut Economy) {
         let mut spawned = Vec::new();
 
-        for (row, cells) in self.plants.iter_mut().enumerate() {
+        for (row, cells) in self.hajs.iter_mut().enumerate() {
             for (col, cell) in cells.iter_mut().enumerate() {
-                let Some(plant) = cell else { continue };
+                let Some(haj) = cell else { continue };
 
-                plant.timer = plant.timer.saturating_sub(1);
-                if plant.timer > 0 {
+                haj.timer = haj.timer.saturating_sub(1);
+                if haj.timer > 0 {
                     continue;
                 }
 
-                let plant_x = col as f32 * UNIT;
-                match plant.kind {
-                    PlantKind::HajShooter => {
+                let haj_x = col as f32 * UNIT;
+                match haj.kind {
+                    HajKind::Mhaj => {
                         let zombie_ahead = self
                             .zombies
                             .iter()
-                            .any(|z| z.row == row && z.x < LAWN_W && z.x + ZOMBIE_WIDTH > plant_x);
+                            .any(|z| z.row == row && z.x < LAWN_W && z.x + ZOMBIE_WIDTH > haj_x);
                         if zombie_ahead {
-                            spawned.push(Projectile::pea(row, plant_x + UNIT - 8.0));
-                            plant.timer = plant.kind.stats().cooldown
-                                - plant.level as u16
-                                    * plant.kind.stats().cooldown_reduction_per_level;
+                            spawned.push(Projectile::pea(row, haj_x + UNIT - 8.0));
+                            haj.timer = haj.kind.stats().cooldown
+                                - haj.level as u16 * haj.kind.stats().cooldown_reduction_per_level;
                         }
                     }
-                    PlantKind::Ikehaj => {
+                    HajKind::Ikehaj => {
                         economy.sun += 25;
-                        plant.timer = plant.kind.stats().cooldown
-                            - plant.level as u16 * plant.kind.stats().cooldown_reduction_per_level;
+                        haj.timer = haj.kind.stats().cooldown
+                            - haj.level as u16 * haj.kind.stats().cooldown_reduction_per_level;
                     }
-                    PlantKind::HajOLantern => {}
+                    HajKind::HajOLantern => {}
                 }
 
-                //passive hp regeneration for plants
-                if plant.hp < plant.kind.stats().hp {
-                    match plant.kind {
-                        PlantKind::HajOLantern => {
-                            plant.hp += PLANT_REGENERATION_RATE * plant.level as f32;
+                //passive hp regeneration for hajs
+                if haj.hp < haj.kind.stats().hp {
+                    match haj.kind {
+                        HajKind::HajOLantern => {
+                            haj.hp += HAJ_REGENERATION_RATE * haj.level as f32;
                         }
                         _ => {
-                            plant.hp += PLANT_REGENERATION_RATE;
+                            haj.hp += HAJ_REGENERATION_RATE;
                         }
                     }
                 }
@@ -355,16 +354,16 @@ impl MobManager {
             let stats = zombie.kind.stats();
 
             let probe = zombie.x + BITE_REACH;
-            let plant = if (0.0..LAWN_W).contains(&probe) {
-                self.plants[zombie.row][(probe / UNIT) as usize].as_mut()
+            let haj = if (0.0..LAWN_W).contains(&probe) {
+                self.hajs[zombie.row][(probe / UNIT) as usize].as_mut()
             } else {
                 None
             };
 
-            match plant {
-                Some(plant) => {
+            match haj {
+                Some(haj) => {
                     zombie.state = ZombieState::Eating;
-                    plant.hp -= stats.bite;
+                    haj.hp -= stats.bite;
                 }
                 None => {
                     zombie.state = ZombieState::Walking;
@@ -374,33 +373,28 @@ impl MobManager {
         }
     }
 
-    fn update_planting_effects(&mut self) {
-        self.planting_effects.retain_mut(PlantingEffect::tick);
+    fn update_hajing_effects(&mut self) {
+        self.hajing_effects.retain_mut(HajingEffect::tick);
     }
 
     fn remove_dead(&mut self) {
         self.zombies.retain(|z| !z.is_dead());
 
-        for cell in self.plants.iter_mut().flatten() {
-            if cell.as_ref().is_some_and(Plant::is_dead) {
+        for cell in self.hajs.iter_mut().flatten() {
+            if cell.as_ref().is_some_and(Haj::is_dead) {
                 *cell = None;
             }
         }
     }
 
     pub fn draw(&mut self) -> Result<(), Error> {
-        for (row, plant_row) in self.plants.iter().enumerate() {
+        for (row, haj_row) in self.hajs.iter().enumerate() {
             let row_y = LAWN_Y + row as f32 * CELL_H;
 
-            for (col, plant) in plant_row.iter().enumerate() {
-                if let Some(plant) = plant {
+            for (col, haj) in haj_row.iter().enumerate() {
+                if let Some(haj) = haj {
                     let (x, y) = cell_origin(row, col);
-                    draw_plant(
-                        plant,
-                        x,
-                        y,
-                        self.sprites.plant(plant.kind, plant.is_evolved()),
-                    )?;
+                    draw_haj(haj, x, y, self.sprites.haj(haj.kind, haj.is_evolved()))?;
                 }
             }
 
@@ -418,10 +412,10 @@ impl MobManager {
             }
         }
 
-        for effect in &self.planting_effects {
+        for effect in &self.hajing_effects {
             let (x, y) = cell_origin(effect.row, effect.col);
-            let frame = (effect.frame as usize).min(PLANTING_FRAMES - 1);
-            let sprite = &mut self.sprites.planting[frame];
+            let frame = (effect.frame as usize).min(HAJING_FRAMES - 1);
+            let sprite = &mut self.sprites.hajing[frame];
             place(sprite, (x + CELL_W / 2.0, y + CELL_H * 0.75));
             sprite.blit()?;
         }
@@ -456,18 +450,18 @@ fn draw_hp_bar(x: f32, y: f32, w: f32, hp: i32, max_hp: i32) -> Result<(), Error
     fill_rect(x, y, w * fraction, 3.0, HP_BAR_FILL)
 }
 
-fn draw_plant(plant: &Plant, x: f32, y: f32, sprite: &mut Sprite<'_>) -> Result<(), Error> {
+fn draw_haj(haj: &Haj, x: f32, y: f32, sprite: &mut Sprite<'_>) -> Result<(), Error> {
     place(sprite, (x + CELL_W / 2.0, y + CELL_H / 2.0));
     sprite.blit()?;
     draw_hp_bar(
         x + 3.0,
         y + 1.0,
         CELL_W - 6.0,
-        plant.hp as i32,
-        plant.kind.stats().hp as i32,
+        haj.hp as i32,
+        haj.kind.stats().hp as i32,
     )?;
     Text::new(
-        &format!("{}", plant.level + 1),
+        &format!("{}", haj.level + 1),
         (x, y + CELL_H),
         TextDrawStyle::default()
             .with_scalar(0.5)

@@ -1,6 +1,6 @@
-//! The level scene: a lawn, some plants, and zombies coming for them.
+//! The level scene: a lawn, some hajs, and zombies coming for them.
 //!
-//! The lawn and the plant shop live on the touch (bottom) screen; the top
+//! The lawn and the haj shop live on the touch (bottom) screen; the top
 //! screen is a read-only dashboard.
 
 use cabbage::{F_BOTTOM_WIDTH, F_TOP_WIDTH, prelude::Error};
@@ -16,7 +16,7 @@ use crate::{
     input::Input,
     mobs::{
         CELL_H, CELL_W, COLS, Economy, MobManager, MobSprites, Outcome, ROWS, cell_origin,
-        plant::PlantKind, zombie::ZombieKind,
+        haj::HajKind, zombie::ZombieKind,
     },
     scene::{Scene, Track, Transition},
     scenes::{end::EndScene, pause::PauseScene},
@@ -47,7 +47,7 @@ const SHOP_H: f32 = 38.;
 const SHOP_MARGIN: f32 = 3.;
 
 fn shop_rect(index: usize) -> (f32, f32, f32, f32) {
-    let n = PlantKind::ALL.len() as f32;
+    let n = HajKind::ALL.len() as f32;
     let w = (F_BOTTOM_WIDTH - SHOP_MARGIN * (n + 1.)) / n;
     let x = SHOP_MARGIN + index as f32 * (w + SHOP_MARGIN);
     (x, SHOP_Y, w, SHOP_H)
@@ -66,7 +66,7 @@ enum TouchTarget {
 fn target_at(touch: (u16, u16)) -> Option<TouchTarget> {
     let p = (touch.0 as f32, touch.1 as f32);
 
-    if let Some(i) = (0..PlantKind::ALL.len()).find(|&i| in_rect(p, shop_rect(i))) {
+    if let Some(i) = (0..HajKind::ALL.len()).find(|&i| in_rect(p, shop_rect(i))) {
         return Some(TouchTarget::Shop(i));
     }
 
@@ -142,8 +142,8 @@ impl GameScene {
         }
     }
 
-    fn selected_kind(&self) -> PlantKind {
-        PlantKind::ALL[self.selected]
+    fn selected_kind(&self) -> HajKind {
+        HajKind::ALL[self.selected]
     }
 
     fn next_random(&mut self) -> u32 {
@@ -155,15 +155,15 @@ impl GameScene {
 
     fn place(&mut self, row: usize, col: usize) {
         let kind = self.selected_kind();
-        if let Some(plant) = self.mobs.plant_at(row, col)
-            && plant.kind == kind
+        if let Some(haj) = self.mobs.haj_at(row, col)
+            && haj.kind == kind
         {
-            if let Err(error) = self.mobs.upgrade_plant(&mut self.economy, row, col) {
+            if let Err(error) = self.mobs.upgrade_haj(&mut self.economy, row, col) {
                 self.message = Some((error.message(), MESSAGE_DURATION));
             }
             return;
         }
-        if let Err(error) = self.mobs.place_plant(&mut self.economy, row, col, kind) {
+        if let Err(error) = self.mobs.place_haj(&mut self.economy, row, col, kind) {
             self.message = Some((error.message(), MESSAGE_DURATION));
         }
     }
@@ -213,7 +213,7 @@ impl GameScene {
             self.cursor_visible = true;
         }
 
-        let count = PlantKind::ALL.len();
+        let count = HajKind::ALL.len();
         if input.pressed(KeyPad::R) {
             self.selected = (self.selected + 1) % count;
         }
@@ -229,7 +229,7 @@ impl GameScene {
         if input.pressed(KeyPad::B) {
             self.cursor_visible = true;
             let (row, col) = self.cursor;
-            if let Err(error) = self.mobs.remove_plant(row, col) {
+            if let Err(error) = self.mobs.remove_haj(row, col) {
                 self.message = Some((error.message(), MESSAGE_DURATION));
             }
         }
@@ -380,7 +380,7 @@ impl Scene for GameScene {
         self.background.blit()?;
 
         // Shop strip.
-        for (i, kind) in PlantKind::ALL.iter().enumerate() {
+        for (i, kind) in HajKind::ALL.iter().enumerate() {
             let (x, y, w, h) = shop_rect(i);
             let cost = kind.stats().cost;
             let affordable = cost <= self.economy.sun;
@@ -408,12 +408,12 @@ impl Scene for GameScene {
             )
             .blit()?;
 
-            let sprite = self.mob_sprites.plant(*kind, false);
+            let sprite = self.mob_sprites.haj(*kind, false);
             place(sprite, (x + (w / 2.0), y + (h / 2.0)));
             sprite.blit()?;
         }
 
-        // Lawn, plants and zombies.
+        // Lawn, hajs and zombies.
         self.mobs.draw()?;
 
         // Highlight the pressed cell, or the D-pad cursor.
