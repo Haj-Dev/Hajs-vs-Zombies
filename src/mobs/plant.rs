@@ -6,7 +6,7 @@ pub enum PlantKind {
 }
 
 pub struct PlantStats {
-    pub hp: i32,
+    pub hp: f32,
     pub cost: u32,
     pub cooldown: u16,
 }
@@ -17,17 +17,17 @@ impl PlantKind {
     pub const fn stats(self) -> PlantStats {
         match self {
             Self::Sunflower => PlantStats {
-                hp: 300,
+                hp: 300.0,
                 cost: 50,
                 cooldown: 5 * 60,
             },
             Self::Peashooter => PlantStats {
-                hp: 300,
+                hp: 300.0,
                 cost: 100,
                 cooldown: 90,
             },
             Self::Wall => PlantStats {
-                hp: 1200,
+                hp: 1200.0,
                 cost: 50,
                 cooldown: 0,
             },
@@ -45,7 +45,7 @@ impl PlantKind {
 
 pub struct Plant {
     pub kind: PlantKind,
-    pub hp: i32,
+    pub hp: f32,
     pub timer: u16,
 }
 
@@ -60,6 +60,6 @@ impl Plant {
     }
 
     pub fn is_dead(&self) -> bool {
-        self.hp <= 0
+        self.hp <= 0.0
     }
 }

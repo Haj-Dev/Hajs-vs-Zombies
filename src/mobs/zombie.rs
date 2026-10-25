@@ -7,18 +7,18 @@ pub enum ZombieKind {
 }
 
 pub struct ZombieStats {
-    pub hp: i32,
+    pub hp: f32,
     pub speed: f32,
-    pub bite: i32,
+    pub bite: f32,
 }
 
 impl ZombieKind {
     pub const fn stats(self) -> ZombieStats {
         match self {
             Self::Basic => ZombieStats {
-                hp: 200,
+                hp: 200.0,
                 speed: 0.25,
-                bite: 1,
+                bite: 1.0,
             },
         }
     }
@@ -34,7 +34,7 @@ pub struct Zombie {
     pub kind: ZombieKind,
     pub row: usize,
     pub x: f32,
-    pub hp: i32,
+    pub hp: f32,
     pub state: ZombieState,
 }
 
@@ -50,6 +50,6 @@ impl Zombie {
     }
 
     pub fn is_dead(&self) -> bool {
-        self.hp <= 0
+        self.hp <= 0.0
     }
 }
