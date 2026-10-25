@@ -8,7 +8,10 @@ use citro2d::prelude::*;
 use crate::assets::{load_sheet, place};
 use haj::{Haj, HajKind};
 use projectile::{BULLET_SPIN_SPEED, EXPLOSION_FRAMES, Projectile, ProjectileState};
-use zombie::{BITE_REACH, ZOMBIE_WIDTH, Zombie, ZombieKind, ZombieState};
+use zombie::{
+    ATTACK_FRAMES, BITE_REACH, DIE_FRAMES, WALK_FRAMES, ZOMBIE_WIDTH, Zombie, ZombieKind,
+    ZombieState,
+};
 
 pub const ROWS: usize = 5;
 pub const COLS: usize = 9;
@@ -31,6 +34,10 @@ const HAJING_FRAMES: usize = 5;
 const HAJING_FRAME_DELAY: u8 = 3;
 
 const HAJ_REGENERATION_RATE: f32 = 0.1;
+
+const WALK_ANCHOR: (f32, f32) = (21.0, 52.0);
+const ATTACK_ANCHOR: (f32, f32) = (20.0, 49.0);
+const DIE_ANCHOR: (f32, f32) = (33.5, 29.0);
 
 #[derive(Default)]
 pub struct Economy {
@@ -116,6 +123,9 @@ pub struct MobSprites {
     bullet: Sprite<'static>,
     explosions: [Sprite<'static>; EXPLOSION_FRAMES],
     hajing: [Sprite<'static>; HAJING_FRAMES],
+    zombie_walk: [Sprite<'static>; WALK_FRAMES],
+    zombie_attack: [Sprite<'static>; ATTACK_FRAMES],
+    zombie_die: [Sprite<'static>; DIE_FRAMES],
 }
 
 impl MobSprites {
@@ -126,6 +136,7 @@ impl MobSprites {
         let hajolantern_sheet = load_sheet("romfs:/hajs/pumpkin-haj.t3x");
         let bullet_sheet = load_sheet("romfs:/bullet.t3x");
         let hajing_sheet = load_sheet("romfs:/hajing-anim.t3x");
+        let zombie_sheet = load_sheet("romfs:/zombies.t3x");
 
         Self {
             ikehaj: Sprite::new(ikehaj_sheet, 0, (0., 0.), (1., 1.)),
@@ -140,6 +151,25 @@ impl MobSprites {
             ],
             hajing: std::array::from_fn(|index| {
                 Sprite::new(hajing_sheet, index, (0., 0.), (1., 1.))
+            }),
+            zombie_walk: std::array::from_fn(|index| {
+                Sprite::new(zombie_sheet, index, (0., 0.), (1., 1.))
+            }),
+            zombie_attack: std::array::from_fn(|index| {
+                Sprite::new(
+                    zombie_sheet,
+                    WALK_FRAMES + index,
+                    (0., 0.),
+                    (1., 1.),
+                )
+            }),
+            zombie_die: std::array::from_fn(|index| {
+                Sprite::new(
+                    zombie_sheet,
+                    WALK_FRAMES + ATTACK_FRAMES + index,
+                    (0., 0.),
+                    (1., 1.),
+                )
             }),
         }
     }
@@ -265,7 +295,11 @@ impl MobManager {
         self.update_hajing_effects();
         self.remove_dead();
 
-        if self.zombies.iter().any(|z| z.x <= 0.0) {
+        if self
+            .zombies
+            .iter()
+            .any(|z| z.state != ZombieState::Dying && z.x <= 0.0)
+        {
             Outcome::Lost
         } else {
             Outcome::Playing
@@ -287,10 +321,12 @@ impl MobManager {
                 let haj_x = col as f32 * UNIT;
                 match haj.kind {
                     HajKind::Mhaj => {
-                        let zombie_ahead = self
-                            .zombies
-                            .iter()
-                            .any(|z| z.row == row && z.x < LAWN_W && z.x + ZOMBIE_WIDTH > haj_x);
+                        let zombie_ahead = self.zombies.iter().any(|z| {
+                            z.state != ZombieState::Dying
+                                && z.row == row
+                                && z.x < LAWN_W
+                                && z.x + ZOMBIE_WIDTH > haj_x
+                        });
                         if zombie_ahead {
                             spawned.push(Projectile::pea(row, haj_x + UNIT - 8.0));
                             haj.timer = haj.kind.stats().cooldown
@@ -338,7 +374,13 @@ impl MobManager {
 
             let target = zombies
                 .iter_mut()
-                .filter(|z| z.row == p.row && p.x >= z.x && p.x <= z.x + ZOMBIE_WIDTH)
+                .filter(|z| {
+                    z.state != ZombieState::Dying
+                        && z.hp > 0.0
+                        && z.row == p.row
+                        && p.x >= z.x
+                        && p.x <= z.x + ZOMBIE_WIDTH
+                })
                 .min_by(|a, b| a.x.total_cmp(&b.x));
 
             if let Some(zombie) = target {
@@ -351,6 +393,12 @@ impl MobManager {
 
     fn update_zombies(&mut self) {
         for zombie in &mut self.zombies {
+            if zombie.is_dead() {
+                zombie.start_dying();
+                zombie.update_animation();
+                continue;
+            }
+
             let stats = zombie.kind.stats();
 
             let probe = zombie.x + BITE_REACH;
@@ -362,14 +410,15 @@ impl MobManager {
 
             match haj {
                 Some(haj) => {
-                    zombie.state = ZombieState::Eating;
+                    zombie.set_state(ZombieState::Eating);
                     haj.hp -= stats.bite;
                 }
                 None => {
-                    zombie.state = ZombieState::Walking;
+                    zombie.set_state(ZombieState::Walking);
                     zombie.x -= stats.speed;
                 }
             }
+            zombie.update_animation();
         }
     }
 
@@ -378,7 +427,7 @@ impl MobManager {
     }
 
     fn remove_dead(&mut self) {
-        self.zombies.retain(|z| !z.is_dead());
+        self.zombies.retain(|z| !z.is_finished_dying());
 
         for cell in self.hajs.iter_mut().flatten() {
             if cell.as_ref().is_some_and(Haj::is_dead) {
@@ -399,7 +448,7 @@ impl MobManager {
             }
 
             for zombie in self.zombies.iter().filter(|z| z.row == row) {
-                draw_zombie(zombie, LAWN_X + zombie.x * SCALE, row_y)?;
+                draw_zombie(zombie, LAWN_X + zombie.x * SCALE, row_y, &mut self.sprites)?;
             }
 
             for projectile in self.projectiles.iter().filter(|p| p.row == row) {
@@ -492,18 +541,43 @@ fn draw_projectile(
     Ok(())
 }
 
-fn draw_zombie(zombie: &Zombie, x: f32, row_y: f32) -> Result<(), Error> {
-    let color = match zombie.state {
-        ZombieState::Walking => 0x7f8c8dff,
-        ZombieState::Eating => 0xa05a5aff,
+fn draw_zombie(zombie: &Zombie, x: f32, row_y: f32, sprites: &mut MobSprites) -> Result<(), Error> {
+    let (sprite, anchor) = match zombie.state {
+        ZombieState::Walking => (
+            &mut sprites.zombie_walk[zombie.animation_frame()],
+            WALK_ANCHOR,
+        ),
+        ZombieState::Eating => (
+            &mut sprites.zombie_attack[zombie.animation_frame()],
+            ATTACK_ANCHOR,
+        ),
+        ZombieState::Dying => (
+            &mut sprites.zombie_die[zombie.animation_frame()],
+            DIE_ANCHOR,
+        ),
     };
-    let w = ZOMBIE_WIDTH * SCALE;
-    fill_rect(x, row_y + 8.0 * SCALE, w, CELL_H - 12.0 * SCALE, color)?;
-    draw_hp_bar(
-        x,
-        row_y + 4.0 * SCALE,
-        w,
-        zombie.hp as i32,
-        zombie.kind.stats().hp as i32,
-    )
+
+    let foot_x = x + ZOMBIE_WIDTH * SCALE / 2.0;
+    let foot_y = row_y + CELL_H - 2.0;
+    let size = sprite.bounding_box.size;
+    let scale = sprite.scalar.0;
+    place(
+        sprite,
+        (
+            foot_x + size.0 / 2.0 - anchor.0 * scale,
+            foot_y + size.1 / 2.0 - anchor.1 * scale,
+        ),
+    );
+    sprite.blit()?;
+
+    if zombie.state != ZombieState::Dying {
+        draw_hp_bar(
+            x,
+            row_y + 4.0 * SCALE,
+            ZOMBIE_WIDTH * SCALE,
+            zombie.hp as i32,
+            zombie.kind.stats().hp as i32,
+        )?;
+    }
+    Ok(())
 }
