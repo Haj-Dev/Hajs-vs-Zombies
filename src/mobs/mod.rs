@@ -109,9 +109,10 @@ impl PlantingEffect {
 }
 
 pub struct MobSprites {
-    sunflower: Sprite<'static>,
-    peashooter: Sprite<'static>,
-    wall: Sprite<'static>,
+    ikehaj: Sprite<'static>,
+    hajshooter: Sprite<'static>,
+    hajshooter_evolved: Sprite<'static>,
+    hajolantern: Sprite<'static>,
     bullet: Sprite<'static>,
     explosions: [Sprite<'static>; EXPLOSION_FRAMES],
     planting: [Sprite<'static>; PLANTING_FRAMES],
@@ -119,16 +120,18 @@ pub struct MobSprites {
 
 impl MobSprites {
     pub fn load() -> Self {
-        let sunflower_sheet = load_sheet("romfs:/hajs/haj-tireur.t3x");
-        let peashooter_sheet = load_sheet("romfs:/hajs/haj-tireur-mk2.t3x");
-        let wall_sheet = load_sheet("romfs:/hajs/pumpkin-haj.t3x");
+        let ikehaj_sheet = load_sheet("romfs:/hajs/ikehaj.t3x");
+        let hajshooter_sheet = load_sheet("romfs:/hajs/haj-tireur.t3x");
+        let hajshooter_evolved_sheet = load_sheet("romfs:/hajs/haj-tireur-mk2.t3x");
+        let hajolantern_sheet = load_sheet("romfs:/hajs/pumpkin-haj.t3x");
         let bullet_sheet = load_sheet("romfs:/bullet.t3x");
         let planting_sheet = load_sheet("romfs:/planting-anim.t3x");
 
         Self {
-            sunflower: Sprite::new(sunflower_sheet, 0, (0., 0.), (1., 1.)),
-            peashooter: Sprite::new(peashooter_sheet, 0, (0., 0.), (1., 1.)),
-            wall: Sprite::new(wall_sheet, 0, (0., 0.), (1., 1.)),
+            ikehaj: Sprite::new(ikehaj_sheet, 0, (0., 0.), (1., 1.)),
+            hajshooter: Sprite::new(hajshooter_sheet, 0, (0., 0.), (1., 1.)),
+            hajshooter_evolved: Sprite::new(hajshooter_evolved_sheet, 0, (0., 0.), (1., 1.)),
+            hajolantern: Sprite::new(hajolantern_sheet, 0, (0., 0.), (1., 1.)),
             bullet: Sprite::new(bullet_sheet, 0, (0., 0.), (1., 1.)),
             explosions: [
                 Sprite::new(bullet_sheet, 1, (0., 0.), (1., 1.)),
@@ -141,11 +144,12 @@ impl MobSprites {
         }
     }
 
-    pub fn plant(&mut self, kind: PlantKind) -> &mut Sprite<'static> {
+    pub fn plant(&mut self, kind: PlantKind, evolved: bool) -> &mut Sprite<'static> {
         match kind {
-            PlantKind::Sunflower => &mut self.sunflower,
-            PlantKind::Peashooter => &mut self.peashooter,
-            PlantKind::Wall => &mut self.wall,
+            PlantKind::HajShooter if evolved => &mut self.hajshooter_evolved,
+            PlantKind::HajShooter => &mut self.hajshooter,
+            PlantKind::Ikehaj => &mut self.ikehaj,
+            PlantKind::HajOLantern => &mut self.hajolantern,
         }
     }
 }
@@ -282,7 +286,7 @@ impl MobManager {
 
                 let plant_x = col as f32 * UNIT;
                 match plant.kind {
-                    PlantKind::Peashooter => {
+                    PlantKind::HajShooter => {
                         let zombie_ahead = self
                             .zombies
                             .iter()
@@ -294,18 +298,18 @@ impl MobManager {
                                     * plant.kind.stats().cooldown_reduction_per_level;
                         }
                     }
-                    PlantKind::Sunflower => {
+                    PlantKind::Ikehaj => {
                         economy.sun += 25;
                         plant.timer = plant.kind.stats().cooldown
                             - plant.level as u16 * plant.kind.stats().cooldown_reduction_per_level;
                     }
-                    PlantKind::Wall => {}
+                    PlantKind::HajOLantern => {}
                 }
 
                 //passive hp regeneration for plants
                 if plant.hp < plant.kind.stats().hp {
                     match plant.kind {
-                        PlantKind::Wall => {
+                        PlantKind::HajOLantern => {
                             plant.hp += PLANT_REGENERATION_RATE * plant.level as f32;
                         }
                         _ => {
@@ -391,7 +395,12 @@ impl MobManager {
             for (col, plant) in plant_row.iter().enumerate() {
                 if let Some(plant) = plant {
                     let (x, y) = cell_origin(row, col);
-                    draw_plant(plant, x, y, self.sprites.plant(plant.kind))?;
+                    draw_plant(
+                        plant,
+                        x,
+                        y,
+                        self.sprites.plant(plant.kind, plant.is_evolved()),
+                    )?;
                 }
             }
 

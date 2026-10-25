@@ -408,7 +408,7 @@ impl Scene for GameScene {
             )
             .blit()?;
 
-            let sprite = self.mob_sprites.plant(*kind);
+            let sprite = self.mob_sprites.plant(*kind, false);
             place(sprite, (x + (w / 2.0), y + (h / 2.0)));
             sprite.blit()?;
         }

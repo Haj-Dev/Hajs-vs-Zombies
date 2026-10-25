@@ -1,8 +1,8 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlantKind {
-    Sunflower,
-    Peashooter,
-    Wall,
+    Ikehaj,
+    HajShooter,
+    HajOLantern,
 }
 
 pub struct PlantStats {
@@ -14,25 +14,25 @@ pub struct PlantStats {
 }
 
 impl PlantKind {
-    pub const ALL: [PlantKind; 3] = [Self::Peashooter, Self::Sunflower, Self::Wall];
+    pub const ALL: [PlantKind; 3] = [Self::HajShooter, Self::Ikehaj, Self::HajOLantern];
 
     pub const fn stats(self) -> PlantStats {
         match self {
-            Self::Sunflower => PlantStats {
+            Self::Ikehaj => PlantStats {
                 hp: 300.0,
                 cost: 50,
                 cooldown: 5 * 60,
                 cooldown_reduction_per_level: 30,
                 max_level: 5,
             },
-            Self::Peashooter => PlantStats {
+            Self::HajShooter => PlantStats {
                 hp: 300.0,
                 cost: 100,
                 cooldown: 90,
                 cooldown_reduction_per_level: 9,
                 max_level: 5,
             },
-            Self::Wall => PlantStats {
+            Self::HajOLantern => PlantStats {
                 hp: 1200.0,
                 cost: 50,
                 cooldown: 0,
@@ -44,9 +44,9 @@ impl PlantKind {
 
     pub const fn name(self) -> &'static str {
         match self {
-            Self::Sunflower => "Sunflower",
-            Self::Peashooter => "Peashooter",
-            Self::Wall => "Wall",
+            Self::Ikehaj => "IKEA Staff",
+            Self::HajShooter => "Haj Shooter",
+            Self::HajOLantern => "Haj'O-Lantern",
         }
     }
 }
@@ -71,5 +71,10 @@ impl Plant {
 
     pub fn is_dead(&self) -> bool {
         self.hp <= 0.0
+    }
+
+    /// Whether this plant has been upgraded at least once.
+    pub fn is_evolved(&self) -> bool {
+        self.level > 0
     }
 }
