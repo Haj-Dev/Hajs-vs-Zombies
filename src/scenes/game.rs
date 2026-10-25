@@ -213,6 +213,13 @@ impl GameScene {
             let (row, col) = self.cursor;
             self.place(row, col);
         }
+        if input.pressed(KeyPad::B) {
+            self.cursor_visible = true;
+            let (row, col) = self.cursor;
+            if let Err(error) = self.mobs.remove_plant(row, col) {
+                self.message = Some((error.message(), MESSAGE_DURATION));
+            }
+        }
     }
 
     fn update_waves(&mut self) {

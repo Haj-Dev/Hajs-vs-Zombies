@@ -60,6 +60,20 @@ impl PlaceError {
     }
 }
 
+pub enum RemoveError {
+    OutOfBounds,
+    NotOccupied,
+}
+
+impl RemoveError {
+    pub const fn message(self) -> &'static str {
+        match self {
+            Self::OutOfBounds => "Out of the lawn!",
+            Self::NotOccupied => "The cell is empty!",
+        }
+    }
+}
+
 struct PlantingEffect {
     row: usize,
     col: usize,
@@ -178,6 +192,16 @@ impl MobManager {
         *cell = Some(Plant::new(kind));
         self.planting_effects.push(PlantingEffect::new(row, col));
         Ok(())
+    }
+
+    pub fn remove_plant(&mut self, row: usize, col: usize) -> Result<(), RemoveError> {
+        let cell = self
+            .plants
+            .get_mut(row)
+            .and_then(|cells| cells.get_mut(col))
+            .ok_or(RemoveError::OutOfBounds)?;
+
+        cell.take().map(|_| ()).ok_or(RemoveError::NotOccupied)
     }
 
     pub fn spawn_zombie(&mut self, row: usize, kind: ZombieKind) {
