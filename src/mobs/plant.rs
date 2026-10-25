@@ -1,4 +1,3 @@
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlantKind {
     Sunflower,

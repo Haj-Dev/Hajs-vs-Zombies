@@ -5,18 +5,27 @@ pub mod zombie;
 use cabbage::prelude::Error;
 use citro2d::prelude::*;
 
+use crate::assets::{load_sheet, place};
 use plant::{Plant, PlantKind};
-use projectile::Projectile;
+use projectile::{BULLET_SPIN_SPEED, EXPLOSION_FRAMES, Projectile, ProjectileState};
 use zombie::{BITE_REACH, ZOMBIE_WIDTH, Zombie, ZombieKind, ZombieState};
 
 pub const ROWS: usize = 5;
 pub const COLS: usize = 9;
-pub const CELL_W: f32 = 40.0;
-pub const CELL_H: f32 = 40.0;
-pub const LAWN_W: f32 = COLS as f32 * CELL_W;
 
-pub const LAWN_X: f32 = 20.0;
-pub const LAWN_Y: f32 = 30.0;
+/// Size of a cell in the simulation's logical pixels. Zombie speeds, bite
+/// reach, projectile speeds, etc. are all expressed in these units.
+pub const UNIT: f32 = 40.0;
+/// Logical width of the lawn.
+pub const LAWN_W: f32 = COLS as f32 * UNIT;
+
+pub const CELL_W: f32 = 26.0;
+pub const CELL_H: f32 = 32.0;
+/// Logical -> screen scale applied when drawing.
+const SCALE: f32 = CELL_W / UNIT;
+
+pub const LAWN_X: f32 = 36.0;
+pub const LAWN_Y: f32 = 72.0;
 
 #[derive(Default)]
 pub struct Economy {
@@ -46,16 +55,58 @@ impl PlaceError {
     }
 }
 
-#[derive(Default)]
+struct MobSprites {
+    sunflower: Sprite<'static>,
+    peashooter: Sprite<'static>,
+    wall: Sprite<'static>,
+    bullet: Sprite<'static>,
+    explosions: [Sprite<'static>; EXPLOSION_FRAMES],
+}
+
+impl MobSprites {
+    fn load() -> Self {
+        let sunflower_sheet = load_sheet("romfs:/hajs/haj-tireur.t3x");
+        let peashooter_sheet = load_sheet("romfs:/hajs/haj-tireur-mk2.t3x");
+        let wall_sheet = load_sheet("romfs:/hajs/pumpkin-haj.t3x");
+        let bullet_sheet = load_sheet("romfs:/bullet.t3x");
+
+        Self {
+            sunflower: Sprite::new(sunflower_sheet, 0, (0., 0.), (1., 1.)),
+            peashooter: Sprite::new(peashooter_sheet, 0, (0., 0.), (1., 1.)),
+            wall: Sprite::new(wall_sheet, 0, (0., 0.), (1., 1.)),
+            bullet: Sprite::new(bullet_sheet, 0, (0., 0.), (1., 1.)),
+            explosions: [
+                Sprite::new(bullet_sheet, 1, (0., 0.), (1., 1.)),
+                Sprite::new(bullet_sheet, 2, (0., 0.), (1., 1.)),
+                Sprite::new(bullet_sheet, 3, (0., 0.), (1., 1.)),
+            ],
+        }
+    }
+
+    fn plant(&mut self, kind: PlantKind) -> &mut Sprite<'static> {
+        match kind {
+            PlantKind::Sunflower => &mut self.sunflower,
+            PlantKind::Peashooter => &mut self.peashooter,
+            PlantKind::Wall => &mut self.wall,
+        }
+    }
+}
+
 pub struct MobManager {
     plants: [[Option<Plant>; COLS]; ROWS],
     zombies: Vec<Zombie>,
     projectiles: Vec<Projectile>,
+    sprites: MobSprites,
 }
 
 impl MobManager {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            plants: std::array::from_fn(|_| std::array::from_fn(|_| None)),
+            zombies: Vec::new(),
+            projectiles: Vec::new(),
+            sprites: MobSprites::load(),
+        }
     }
 
     pub fn place_plant(
@@ -118,7 +169,7 @@ impl MobManager {
                     continue;
                 }
 
-                let plant_x = col as f32 * CELL_W;
+                let plant_x = col as f32 * UNIT;
                 match plant.kind {
                     PlantKind::Peashooter => {
                         let zombie_ahead = self
@@ -126,7 +177,7 @@ impl MobManager {
                             .iter()
                             .any(|z| z.row == row && z.x < LAWN_W && z.x + ZOMBIE_WIDTH > plant_x);
                         if zombie_ahead {
-                            spawned.push(Projectile::pea(row, plant_x + CELL_W - 8.0));
+                            spawned.push(Projectile::pea(row, plant_x + UNIT - 8.0));
                             plant.timer = plant.kind.stats().cooldown;
                         }
                     }
@@ -146,7 +197,12 @@ impl MobManager {
         let zombies = &mut self.zombies;
 
         self.projectiles.retain_mut(|p| {
+            if !p.is_flying() {
+                return p.tick_explosion();
+            }
+
             p.x += p.speed;
+            p.spin = (p.spin + BULLET_SPIN_SPEED) % 360.0;
             if p.x > LAWN_W {
                 return false;
             }
@@ -156,13 +212,11 @@ impl MobManager {
                 .filter(|z| z.row == p.row && p.x >= z.x && p.x <= z.x + ZOMBIE_WIDTH)
                 .min_by(|a, b| a.x.total_cmp(&b.x));
 
-            match target {
-                Some(zombie) => {
-                    zombie.hp -= p.damage;
-                    false
-                }
-                None => true,
+            if let Some(zombie) = target {
+                zombie.hp -= p.damage;
+                p.explode();
             }
+            true
         });
     }
 
@@ -172,7 +226,7 @@ impl MobManager {
 
             let probe = zombie.x + BITE_REACH;
             let plant = if (0.0..LAWN_W).contains(&probe) {
-                self.plants[zombie.row][(probe / CELL_W) as usize].as_mut()
+                self.plants[zombie.row][(probe / UNIT) as usize].as_mut()
             } else {
                 None
             };
@@ -200,40 +254,27 @@ impl MobManager {
         }
     }
 
-    pub fn draw(&self) -> Result<(), Error> {
-        for row in 0..ROWS {
-            for col in 0..COLS {
-                let color = if (row + col) % 2 == 0 {
-                    LAWN_LIGHT
-                } else {
-                    LAWN_DARK
-                };
-                let (x, y) = cell_origin(row, col);
-                fill_rect(x, y, CELL_W, CELL_H, color)?;
-            }
-        }
-
-        for row in 0..ROWS {
+    pub fn draw(&mut self) -> Result<(), Error> {
+        for (row, plant_row) in self.plants.iter().enumerate() {
             let row_y = LAWN_Y + row as f32 * CELL_H;
 
-            for (col, plant) in self.plants[row].iter().enumerate() {
+            for (col, plant) in plant_row.iter().enumerate() {
                 if let Some(plant) = plant {
                     let (x, y) = cell_origin(row, col);
-                    draw_plant(plant, x, y)?;
+                    draw_plant(plant, x, y, self.sprites.plant(plant.kind))?;
                 }
             }
 
             for zombie in self.zombies.iter().filter(|z| z.row == row) {
-                draw_zombie(zombie, LAWN_X + zombie.x, row_y)?;
+                draw_zombie(zombie, LAWN_X + zombie.x * SCALE, row_y)?;
             }
 
             for projectile in self.projectiles.iter().filter(|p| p.row == row) {
-                fill_rect(
-                    LAWN_X + projectile.x - 3.0,
-                    row_y + CELL_H / 2.0 - 8.0,
-                    6.0,
-                    6.0,
-                    PEA_COLOR,
+                draw_projectile(
+                    projectile,
+                    LAWN_X + projectile.x * SCALE,
+                    row_y,
+                    &mut self.sprites,
                 )?;
             }
         }
@@ -242,13 +283,11 @@ impl MobManager {
     }
 }
 
+/// On-screen top-left of a lawn cell.
 pub fn cell_origin(row: usize, col: usize) -> (f32, f32) {
     (LAWN_X + col as f32 * CELL_W, LAWN_Y + row as f32 * CELL_H)
 }
 
-const LAWN_LIGHT: Rgba = 0x8fd16bff;
-const LAWN_DARK: Rgba = 0x7bc257ff;
-const PEA_COLOR: Rgba = 0x2e7d32ff;
 const HP_BAR_BACK: Rgba = 0x4c4f69ff;
 const HP_BAR_FILL: Rgba = 0xd20f39ff;
 
@@ -267,26 +306,36 @@ fn draw_hp_bar(x: f32, y: f32, w: f32, hp: i32, max_hp: i32) -> Result<(), Error
     fill_rect(x, y, w * fraction, 3.0, HP_BAR_FILL)
 }
 
-fn draw_plant(plant: &Plant, x: f32, y: f32) -> Result<(), Error> {
-    let (color, inset) = match plant.kind {
-        PlantKind::Sunflower => (0xf9c74fff, 8.0),
-        PlantKind::Peashooter => (0x2d9e3cff, 8.0),
-        PlantKind::Wall => (0x9c6b3eff, 5.0),
-    };
-    fill_rect(
-        x + inset,
-        y + inset,
-        CELL_W - inset * 2.0,
-        CELL_H - inset * 2.0,
-        color,
-    )?;
+fn draw_plant(plant: &Plant, x: f32, y: f32, sprite: &mut Sprite<'_>) -> Result<(), Error> {
+    place(sprite, (x + CELL_W / 2.0, y + CELL_H / 2.0));
+    sprite.blit()?;
     draw_hp_bar(
-        x + 6.0,
-        y + 2.0,
-        CELL_W - 12.0,
+        x + 3.0,
+        y + 1.0,
+        CELL_W - 6.0,
         plant.hp,
         plant.kind.stats().hp,
     )
+}
+
+fn draw_projectile(
+    projectile: &Projectile,
+    x: f32,
+    row_y: f32,
+    sprites: &mut MobSprites,
+) -> Result<(), Error> {
+    let (sprite, rotation) = match projectile.state {
+        ProjectileState::Flying => (&mut sprites.bullet, projectile.spin),
+        ProjectileState::Exploding { frame, .. } => {
+            let frame = (frame as usize).min(EXPLOSION_FRAMES - 1);
+            (&mut sprites.explosions[frame], 0.0)
+        }
+    };
+
+    place(sprite, (x, row_y + CELL_H / 2.0));
+    sprite.set_rotation(rotation);
+    sprite.blit()?;
+    Ok(())
 }
 
 fn draw_zombie(zombie: &Zombie, x: f32, row_y: f32) -> Result<(), Error> {
@@ -294,12 +343,7 @@ fn draw_zombie(zombie: &Zombie, x: f32, row_y: f32) -> Result<(), Error> {
         ZombieState::Walking => 0x7f8c8dff,
         ZombieState::Eating => 0xa05a5aff,
     };
-    fill_rect(x, row_y + 8.0, ZOMBIE_WIDTH, CELL_H - 12.0, color)?;
-    draw_hp_bar(
-        x,
-        row_y + 4.0,
-        ZOMBIE_WIDTH,
-        zombie.hp,
-        zombie.kind.stats().hp,
-    )
+    let w = ZOMBIE_WIDTH * SCALE;
+    fill_rect(x, row_y + 8.0 * SCALE, w, CELL_H - 12.0 * SCALE, color)?;
+    draw_hp_bar(x, row_y + 4.0 * SCALE, w, zombie.hp, zombie.kind.stats().hp)
 }

@@ -1,3 +1,5 @@
+mod assets;
+mod frame;
 mod input;
 mod mobs;
 mod scene;
@@ -50,10 +52,10 @@ impl StateImpl<App> for State<'_, App> {
                 break;
             }
 
+            frame::begin();
             top_target = self.app.scenes.draw_top(top_target)?;
             bottom_target = self.app.scenes.draw_bottom(bottom_target)?;
-
-            self.handles.gfx.wait_for_vblank();
+            frame::end();
         }
 
         Ok(())
