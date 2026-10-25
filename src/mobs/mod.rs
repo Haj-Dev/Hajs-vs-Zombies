@@ -388,6 +388,9 @@ fn fill_rect(x: f32, y: f32, w: f32, h: f32, color: Rgba) -> Result<(), Error> {
 }
 
 fn draw_hp_bar(x: f32, y: f32, w: f32, hp: i32, max_hp: i32) -> Result<(), Error> {
+    if hp == max_hp {
+        return Ok(());
+    }
     let fraction = (hp as f32 / max_hp as f32).clamp(0.0, 1.0);
     fill_rect(x, y, w, 3.0, HP_BAR_BACK)?;
     fill_rect(x, y, w * fraction, 3.0, HP_BAR_FILL)
