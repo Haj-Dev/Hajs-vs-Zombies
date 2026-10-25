@@ -11,16 +11,10 @@ use ctru::{
 };
 
 use crate::{
-    assets::load_sheet,
-    frame,
-    input::Input,
-    mobs::{
-        CELL_H, CELL_W, COLS, Economy, MobManager, Outcome, ROWS, cell_origin, plant::PlantKind,
+    assets::{load_sheet, place}, frame, input::Input, mobs::{
+        CELL_H, CELL_W, COLS, Economy, MobManager, MobSprites, Outcome, ROWS, cell_origin, plant::PlantKind,
         zombie::ZombieKind,
-    },
-    scene::{Scene, Track, Transition},
-    scenes::end::EndScene,
-    scenes::pause::PauseScene,
+    }, scene::{Scene, Track, Transition}, scenes::{end::EndScene, pause::PauseScene},
 };
 
 const BACKGROUND: Rgba = 0xeff1f5ff;
@@ -94,6 +88,7 @@ pub struct GameScene {
     rng: u32,
     message: Option<(&'static str, u16)>,
     sprites: Vec<Sprite<'static>>,
+    mob_sprites: MobSprites,
     background: Sprite<'static>,
     ikea_point: Sprite<'static>,
     press: Option<TouchTarget>,
@@ -120,6 +115,8 @@ impl GameScene {
             (1., 1.),
         );
 
+        let mob_sprites = MobSprites::load();
+
         Self {
             mobs: MobManager::new(),
             economy: Economy { sun: STARTING_SUN },
@@ -132,6 +129,7 @@ impl GameScene {
             rng: 0x2545_f491,
             message: None,
             sprites,
+            mob_sprites,
             background,
             ikea_point,
             press: None,
@@ -390,20 +388,9 @@ impl Scene for GameScene {
             )
             .blit()?;
 
-            for (text, dy) in [
-                (kind.name().to_string(), h * 0.32),
-                (cost.to_string(), h * 0.72),
-            ] {
-                Text::new(
-                    &text,
-                    (x + w / 2., y + dy),
-                    TextDrawStyle::default()
-                        .with_scalar(0.45)
-                        .with_color(text_color)
-                        .with_alignment(HorizAlignment::Center, VertAlignment::Center),
-                )
-                .blit()?;
-            }
+            let sprite = self.mob_sprites.plant(*kind);
+            place(sprite, (x + (w / 2.0), y + (h / 2.0)));
+            sprite.blit()?;
         }
 
         // Lawn, plants and zombies.

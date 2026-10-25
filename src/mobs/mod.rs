@@ -55,7 +55,7 @@ impl PlaceError {
         match self {
             Self::OutOfBounds => "Out of the lawn!",
             Self::Occupied => "This cell is taken!",
-            Self::NotEnoughSun => "Not enough sun!",
+            Self::NotEnoughSun => "Not enough ikea points!",
         }
     }
 }
@@ -92,7 +92,7 @@ impl PlantingEffect {
     }
 }
 
-struct MobSprites {
+pub struct MobSprites {
     sunflower: Sprite<'static>,
     peashooter: Sprite<'static>,
     wall: Sprite<'static>,
@@ -102,7 +102,7 @@ struct MobSprites {
 }
 
 impl MobSprites {
-    fn load() -> Self {
+    pub fn load() -> Self {
         let sunflower_sheet = load_sheet("romfs:/hajs/haj-tireur.t3x");
         let peashooter_sheet = load_sheet("romfs:/hajs/haj-tireur-mk2.t3x");
         let wall_sheet = load_sheet("romfs:/hajs/pumpkin-haj.t3x");
@@ -125,7 +125,7 @@ impl MobSprites {
         }
     }
 
-    fn plant(&mut self, kind: PlantKind) -> &mut Sprite<'static> {
+    pub fn plant(&mut self, kind: PlantKind) -> &mut Sprite<'static> {
         match kind {
             PlantKind::Sunflower => &mut self.sunflower,
             PlantKind::Peashooter => &mut self.peashooter,
