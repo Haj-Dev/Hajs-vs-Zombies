@@ -11,10 +11,15 @@ use ctru::{
 };
 
 use crate::{
-    assets::{load_sheet, place}, frame, input::Input, mobs::{
-        CELL_H, CELL_W, COLS, Economy, MobManager, MobSprites, Outcome, ROWS, cell_origin, plant::PlantKind,
-        zombie::ZombieKind,
-    }, scene::{Scene, Track, Transition}, scenes::{end::EndScene, pause::PauseScene},
+    assets::{load_sheet, place},
+    frame,
+    input::Input,
+    mobs::{
+        CELL_H, CELL_W, COLS, Economy, MobManager, MobSprites, Outcome, ROWS, cell_origin,
+        plant::PlantKind, zombie::ZombieKind,
+    },
+    scene::{Scene, Track, Transition},
+    scenes::{end::EndScene, pause::PauseScene},
 };
 
 const BACKGROUND: Rgba = 0xeff1f5ff;
@@ -150,6 +155,14 @@ impl GameScene {
 
     fn place(&mut self, row: usize, col: usize) {
         let kind = self.selected_kind();
+        if let Some(plant) = self.mobs.plant_at(row, col)
+            && plant.kind == kind
+        {
+            if let Err(error) = self.mobs.upgrade_plant(&mut self.economy, row, col) {
+                self.message = Some((error.message(), MESSAGE_DURATION));
+            }
+            return;
+        }
         if let Err(error) = self.mobs.place_plant(&mut self.economy, row, col, kind) {
             self.message = Some((error.message(), MESSAGE_DURATION));
         }

@@ -48,6 +48,7 @@ pub enum PlaceError {
     OutOfBounds,
     Occupied,
     NotEnoughSun,
+    MaxLevelReached,
 }
 
 impl PlaceError {
@@ -56,6 +57,7 @@ impl PlaceError {
             Self::OutOfBounds => "Out of the lawn!",
             Self::Occupied => "This cell is taken!",
             Self::NotEnoughSun => "Not enough ikea points!",
+            Self::MaxLevelReached => "Plant is already at max level!",
         }
     }
 }
@@ -167,6 +169,13 @@ impl MobManager {
         }
     }
 
+    pub fn plant_at(&self, row: usize, col: usize) -> Option<&Plant> {
+        self.plants
+            .get(row)
+            .and_then(|cells| cells.get(col))
+            .and_then(|cell| cell.as_ref())
+    }
+
     pub fn place_plant(
         &mut self,
         economy: &mut Economy,
@@ -190,6 +199,38 @@ impl MobManager {
 
         economy.sun -= cost;
         *cell = Some(Plant::new(kind));
+        self.planting_effects.push(PlantingEffect::new(row, col));
+        Ok(())
+    }
+
+    pub fn upgrade_plant(
+        &mut self,
+        economy: &mut Economy,
+        row: usize,
+        col: usize,
+    ) -> Result<(), PlaceError> {
+        let cell = self
+            .plants
+            .get_mut(row)
+            .and_then(|cells| cells.get_mut(col))
+            .ok_or(PlaceError::OutOfBounds)?;
+
+        let Some(plant) = cell.as_mut() else {
+            return Err(PlaceError::Occupied);
+        };
+
+        let stats = plant.kind.stats();
+        if plant.level >= stats.max_level - 1 {
+            return Err(PlaceError::MaxLevelReached);
+        }
+
+        let upgrade_cost = stats.cost;
+        if economy.sun < upgrade_cost {
+            return Err(PlaceError::NotEnoughSun);
+        }
+
+        economy.sun -= upgrade_cost;
+        plant.level = (plant.level + 1).min(stats.max_level);
         self.planting_effects.push(PlantingEffect::new(row, col));
         Ok(())
     }
@@ -248,19 +289,29 @@ impl MobManager {
                             .any(|z| z.row == row && z.x < LAWN_W && z.x + ZOMBIE_WIDTH > plant_x);
                         if zombie_ahead {
                             spawned.push(Projectile::pea(row, plant_x + UNIT - 8.0));
-                            plant.timer = plant.kind.stats().cooldown;
+                            plant.timer = plant.kind.stats().cooldown
+                                - plant.level as u16
+                                    * plant.kind.stats().cooldown_reduction_per_level;
                         }
                     }
                     PlantKind::Sunflower => {
                         economy.sun += 25;
-                        plant.timer = plant.kind.stats().cooldown;
+                        plant.timer = plant.kind.stats().cooldown
+                            - plant.level as u16 * plant.kind.stats().cooldown_reduction_per_level;
                     }
                     PlantKind::Wall => {}
                 }
 
                 //passive hp regeneration for plants
                 if plant.hp < plant.kind.stats().hp {
-                    plant.hp += PLANT_REGENERATION_RATE;
+                    match plant.kind {
+                        PlantKind::Wall => {
+                            plant.hp += PLANT_REGENERATION_RATE * plant.level as f32;
+                        }
+                        _ => {
+                            plant.hp += PLANT_REGENERATION_RATE;
+                        }
+                    }
                 }
             }
         }
@@ -405,7 +456,17 @@ fn draw_plant(plant: &Plant, x: f32, y: f32, sprite: &mut Sprite<'_>) -> Result<
         CELL_W - 6.0,
         plant.hp as i32,
         plant.kind.stats().hp as i32,
+    )?;
+    Text::new(
+        &format!("{}", plant.level + 1),
+        (x, y + CELL_H),
+        TextDrawStyle::default()
+            .with_scalar(0.5)
+            .with_color(0x000000ff)
+            .with_alignment(HorizAlignment::Left, VertAlignment::Baseline),
     )
+    .blit()?;
+    Ok(())
 }
 
 fn draw_projectile(
