@@ -1,3 +1,4 @@
+mod assets;
 mod frame;
 mod input;
 mod mobs;

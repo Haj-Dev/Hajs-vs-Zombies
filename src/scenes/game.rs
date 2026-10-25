@@ -11,6 +11,7 @@ use ctru::{
 };
 
 use crate::{
+    assets::load_sheet,
     frame,
     input::Input,
     mobs::{
@@ -93,19 +94,31 @@ pub struct GameScene {
     rng: u32,
     message: Option<(&'static str, u16)>,
     sprites: Vec<Sprite<'static>>,
+    background: Sprite<'static>,
+    ikea_point: Sprite<'static>,
     press: Option<TouchTarget>,
     last_touch: Option<(u16, u16)>,
 }
 
 impl GameScene {
     pub fn new() -> Self {
-        let sheet: &'static SpriteSheet = Box::leak(Box::new(
-            SpriteSheet::new("romfs:/spinning-blahaj.t3x")
-                .expect("failed to load romfs:/spinning-blahaj.t3x"),
-        ));
+        let sheet = load_sheet("romfs:/spinning-blahaj.t3x");
         let sprites = (0..BLAHAJ_FRAMES)
             .map(|index| Sprite::new(sheet, index, (F_TOP_WIDTH / 2., 120.), (1., 1.)))
             .collect();
+
+        let background = Sprite::new(
+            load_sheet("romfs:/level-background.t3x"),
+            0,
+            (F_BOTTOM_WIDTH / 2., 120.),
+            (1., 1.),
+        );
+        let ikea_point = Sprite::new(
+            load_sheet("romfs:/ikea-point.t3x"),
+            0,
+            (154., 55.),
+            (1., 1.),
+        );
 
         Self {
             mobs: MobManager::new(),
@@ -119,6 +132,8 @@ impl GameScene {
             rng: 0x2545_f491,
             message: None,
             sprites,
+            background,
+            ikea_point,
             press: None,
             last_touch: None,
         }
@@ -283,12 +298,21 @@ impl Scene for GameScene {
             )
             .blit()
         };
-      
+
         let animation_frame = (self.frame / BLAHAJ_FRAME_DELAY) as usize % self.sprites.len();
         self.sprites[animation_frame].blit()?;
 
         line("IKEA Points", 22., 0.7, TOP_TEXT_COLOR)?;
-        line(&self.economy.sun.to_string(), 55., 1.4, ACCENT)?;
+        self.ikea_point.blit()?;
+        Text::new(
+            &self.economy.sun.to_string(),
+            (176., 55.),
+            TextDrawStyle::default()
+                .with_scalar(1.4)
+                .with_color(ACCENT)
+                .with_alignment(HorizAlignment::Left, VertAlignment::Center),
+        )
+        .blit()?;
 
         let kind = self.selected_kind();
         let stats = kind.stats();
@@ -331,6 +355,7 @@ impl Scene for GameScene {
     ) -> Result<Target<'s, BottomScreen, ReadyMode>, Error> {
         let mut draw_target = frame::begin_scene(target);
         draw_target.clear(BACKGROUND);
+        self.background.blit()?;
 
         // Shop strip.
         for (i, kind) in PlantKind::ALL.iter().enumerate() {
